@@ -6,160 +6,113 @@
     <title>Noobster Panel</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Modern Dark Theme Colors */
         :root {
-            --bg-main: #0e1621;
-            --bg-sidebar: #17212b;
-            --bg-hover: #202b36;
-            --bg-active: #2b5278;
-            --text-main: #ffffff;
-            --text-muted: #7d8b99;
-            --border-color: #101921;
-            --bubble-in: #182533;
-            --bubble-out: #2b5278;
-            --accent: #2b5278;
+            --bg-main: #0e1621; --bg-sidebar: #17212b; --bg-hover: #202b36;
+            --bg-active: #2b5278; --text-main: #ffffff; --text-muted: #7d8b99;
+            --border-color: #101921; --bubble-in: #182533; --bubble-out: #2b5278; --accent: #2b5278;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { height: 100vh; height: 100dvh; background: var(--bg-main); color: var(--text-main); overflow: hidden; display: flex; flex-direction: column; }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #2b5278; border-radius: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-
-        /* --- LOGIN SCREEN --- */
+        /* Login */
         #authScreen { position: fixed; inset: 0; background: var(--bg-main); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
-        .auth-box { background: var(--bg-sidebar); padding: 40px 30px; border-radius: 20px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.05); }
-        .auth-box h2 { margin-bottom: 25px; font-weight: 700; font-size: 24px; letter-spacing: 0.5px; }
-        .auth-box input { width: 100%; padding: 15px; margin-bottom: 20px; border-radius: 12px; border: 1px solid #2b5278; background: var(--bg-main); color: #fff; outline: none; font-size: 16px; text-align: center; transition: 0.3s; }
-        .auth-box input:focus { border-color: #4a8cc7; box-shadow: 0 0 10px rgba(43, 82, 120, 0.5); }
-        .auth-box button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .auth-box button:hover { background: #3a6b99; }
+        .auth-box { background: var(--bg-sidebar); padding: 40px 30px; border-radius: 20px; width: 100%; max-width: 380px; text-align: center; }
+        .auth-box input { width: 100%; padding: 15px; margin: 20px 0; border-radius: 12px; border: 1px solid var(--accent); background: var(--bg-main); color: #fff; text-align: center; }
+        .auth-box button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-weight: bold; }
 
-        /* --- MAIN APP LAYOUT --- */
+        /* Main */
         #mainScreen { display: none; flex: 1; flex-direction: column; height: 100%; }
-        
-        /* Header */
-        .top-header { background: var(--bg-sidebar); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100; }
-        .top-header h2 { font-size: 18px; font-weight: 500; }
-        .add-btn { background: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 5px; transition: 0.2s; }
-        .add-btn:hover { background: #3a6b99; transform: translateY(-1px); }
+        .top-header { background: var(--bg-sidebar); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+        .add-btn { background: var(--accent); color: #fff; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; }
 
-        /* --- ACCOUNTS GRID --- */
-        #accountsView { flex: 1; padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; align-content: start; }
-        .acc-card { background: var(--bg-sidebar); border-radius: 16px; padding: 20px 15px; text-align: center; cursor: pointer; transition: 0.3s; border: 1px solid rgba(255,255,255,0.03); position: relative; overflow: hidden; }
-        .acc-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        .acc-card img { width: 70px; height: 70px; border-radius: 50%; margin-bottom: 12px; border: 2px solid var(--bg-main); }
-        .acc-card h3 { font-size: 15px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .acc-card p { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-        .acc-card .username { font-size: 12px; color: #4a8cc7; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Accounts Grid */
+        #accountsView { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; align-content: start; }
+        .acc-card { background: var(--bg-sidebar); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; border: 1px solid var(--border-color); }
+        .acc-card img { width: 60px; height: 60px; border-radius: 50%; margin-bottom: 10px; }
+        .acc-card h3 { font-size: 14px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .acc-card p { font-size: 12px; color: var(--text-muted); }
 
-        /* --- CHAT VIEW --- */
-        #chatView { display: none; flex: 1; flex-direction: column; height: 100%; position: relative; overflow: hidden; }
+        /* Chat View */
+        #chatView { display: none; flex: 1; flex-direction: row; height: 100%; position: relative; overflow: hidden; }
         
-        /* Sidebar (Chat List) */
-        #sidebar { width: 100%; height: 100%; background: var(--bg-sidebar); display: flex; flex-direction: column; position: absolute; inset: 0; z-index: 10; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Sidebar List */
+        #sidebar { width: 100%; height: 100%; background: var(--bg-sidebar); display: flex; flex-direction: column; position: absolute; inset: 0; z-index: 10; transition: transform 0.3s ease; }
         #sidebar.hidden { transform: translateX(-100%); }
-        .sidebar-header { padding: 15px 20px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar); }
-        .back-btn { background: transparent; border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 5px; display: flex; align-items: center; transition: 0.2s; }
-        .back-btn:hover { color: #4a8cc7; }
-        #activeAccName { font-weight: 500; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+        .sidebar-header { padding: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar); }
+        .back-btn { background: transparent; border: none; color: #fff; font-size: 24px; padding: 0 10px; flex-shrink: 0; }
+        #activeAccName { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
         #chatList { flex: 1; overflow-y: auto; }
-        .chat-item { padding: 12px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; gap: 15px; transition: 0.2s; }
-        .chat-item:hover, .chat-item:active { background: var(--bg-hover); }
-        .chat-dp { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #2b5278, #1a354f); display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 20px; flex-shrink: 0; box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+        .chat-item { padding: 12px 15px; border-bottom: 1px solid var(--border-color); display: flex; gap: 12px; align-items: center; }
+        .chat-dp { width: 45px; height: 45px; border-radius: 50%; background: var(--accent); display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0; }
         .chat-details { flex: 1; min-width: 0; }
-        .chat-name { font-weight: 500; font-size: 16px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-name { font-weight: 500; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-last { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* Message Area */
-        #messageArea { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); background-image: url('https://web.telegram.org/img/bg_0.png'); background-size: cover; background-blend-mode: overlay; width: 100%; height: 100%; position: absolute; inset: 0; z-index: 20; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        #messageArea { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); width: 100%; height: 100%; position: absolute; inset: 0; z-index: 20; transition: transform 0.3s ease; }
         #messageArea.hidden { transform: translateX(100%); }
-        
-        .msg-header { padding: 12px 20px; background: rgba(23, 33, 43, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; z-index: 21; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .msg-header { padding: 12px 15px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; z-index: 21; }
+        .msg-back { background: transparent; border: none; color: #fff; font-size: 24px; padding: 0 10px; flex-shrink: 0; }
         .msg-title { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        #messages { flex: 1; overflow-y: auto; padding: 20px 15px; display: flex; flex-direction: column; gap: 10px; }
         
-        .msg-row { display: flex; width: 100%; animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .msg-row { display: flex; width: 100%; }
         .msg-row.mine { justify-content: flex-end; }
-        .msg { padding: 10px 14px; border-radius: 16px; max-width: 85%; font-size: 15px; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 15px; word-wrap: break-word; }
         .msg.incoming { background: var(--bubble-in); border-bottom-left-radius: 4px; }
         .msg.outgoing { background: var(--bubble-out); border-bottom-right-radius: 4px; }
 
-        /* Input */
-        #inputArea { padding: 12px 15px; background: rgba(23, 33, 43, 0.95); backdrop-filter: blur(10px); display: flex; gap: 10px; z-index: 21; align-items: center; border-top: 1px solid var(--border-color); }
-        #msgInput { flex: 1; padding: 14px 20px; border-radius: 25px; border: none; background: var(--bg-main); color: #fff; outline: none; font-size: 15px; transition: 0.2s; }
-        #msgInput:focus { background: #131e2a; }
-        #sendBtn { background: var(--accent); border: none; width: 48px; height: 48px; border-radius: 50%; color: #fff; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: 0.2s; box-shadow: 0 3px 10px rgba(43, 82, 120, 0.3); }
-        #sendBtn:hover { background: #3a6b99; transform: scale(1.05); }
+        /* Input Area */
+        #inputArea { padding: 10px 15px; background: var(--bg-sidebar); display: flex; gap: 10px; z-index: 21; align-items: center; }
+        #msgInput { flex: 1; padding: 12px 15px; border-radius: 20px; border: none; background: var(--bg-main); color: #fff; outline: none; font-size: 15px; }
+        #sendBtn { background: var(--accent); border: none; width: 45px; height: 45px; border-radius: 50%; color: #fff; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
 
         /* Modal */
-        #addAccountModal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
-        .modal-box { background: var(--bg-sidebar); padding: 30px 25px; border-radius: 20px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); }
-        .modal-box h3 { text-align: center; margin-bottom: 10px; font-size: 20px; }
-        .modal-box input { padding: 15px; border-radius: 12px; border: 1px solid #2b5278; background: var(--bg-main); color: #fff; outline: none; font-size: 15px; transition: 0.2s; }
-        .modal-box input:focus { border-color: #4a8cc7; }
-        .modal-box button { padding: 15px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; margin-top: 5px; }
-        .modal-box button:hover { background: #3a6b99; }
-        .modal-box .cancel-btn { background: #222; color: #aaa; margin-top: 0; }
-        .modal-box .cancel-btn:hover { background: #333; color: #fff; }
+        #addAccountModal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .modal-box { background: var(--bg-sidebar); padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; }
+        .modal-box input, .modal-box textarea { padding: 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--bg-main); color: #fff; outline: none; font-size: 14px; width: 100%; }
+        .modal-box button { padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: bold; cursor: pointer; }
 
-        /* Desktop View (Adjustments) */
-        @media (min-width: 768px) {
-            #chatView { flex-direction: row; }
+        /* PC Layout Fix */
+        @media (min-width: 900px) {
             #sidebar { position: relative; width: 350px; transform: none !important; border-right: 1px solid var(--border-color); z-index: 21; }
-            #messageArea { position: relative; transform: none !important; flex: 1; }
+            #messageArea { position: relative; transform: none !important; }
             .msg-back { display: none; }
-            .sidebar-header .back-btn { display: block; } /* Keep back button to return to accounts */
         }
     </style>
 </head>
 <body>
 
-    <!-- ACCESS KEY LOGIN -->
     <div id="authScreen">
         <div class="auth-box">
             <h2>Noobster Panel</h2>
             <input type="password" id="accessKeyInput" placeholder="Enter Access Key">
             <button onclick="verifyKey()">Login</button>
-            <p id="authError" style="color: #e74c3c; font-size: 14px; margin-top: 15px; font-weight: 500;"></p>
+            <p id="authError" style="color: #e74c3c; font-size: 13px; margin-top: 10px;"></p>
         </div>
     </div>
 
-    <!-- ADD ACCOUNT MODAL -->
     <div id="addAccountModal">
         <div class="modal-box">
             <h3>Add New Account</h3>
             <input type="text" id="apiIdInput" placeholder="API ID (Optional)">
             <input type="text" id="apiHashInput" placeholder="API HASH (Optional)">
-            <textarea id="sessionInput" placeholder="Paste String Session here..." rows="3" style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #2b5278; background: var(--bg-main); color: #fff; outline: none; font-size: 14px; resize: none; font-family: monospace;"></textarea>
+            <textarea id="sessionInput" placeholder="Paste String Session here..." rows="3"></textarea>
             <button onclick="addAccount()">Connect Account</button>
             <p id="addAccError" style="color: #e74c3c; font-size: 13px; text-align: center;"></p>
-            <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+            <button onclick="closeModal()" style="background: #333;">Cancel</button>
         </div>
     </div>
 
-    <!-- MAIN APP -->
     <div id="mainScreen">
-        
-        <!-- Account List Screen -->
         <div class="top-header" id="mainHeader">
             <h2>My Accounts</h2>
-            <button class="add-btn" onclick="openModal()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                Add
-            </button>
+            <button class="add-btn" onclick="openModal()">+ Add</button>
         </div>
         <div id="accountsView"></div>
 
-        <!-- Chat Section -->
         <div id="chatView">
-            
-            <!-- Sidebar (Chat List) -->
             <div id="sidebar">
                 <div class="sidebar-header">
                     <button class="back-btn" onclick="backToAccounts()">←</button>
@@ -168,7 +121,6 @@
                 <div id="chatList"></div>
             </div>
 
-            <!-- Message Area (Full Screen) -->
             <div id="messageArea" class="hidden">
                 <div class="msg-header">
                     <button class="msg-back" onclick="closeChat()">←</button>
@@ -176,13 +128,12 @@
                 </div>
                 <div id="messages"></div>
                 <div id="inputArea">
-                    <input type="text" id="msgInput" placeholder="Write a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+                    <input type="text" id="msgInput" placeholder="Message..." onkeypress="if(event.key==='Enter') sendMsg()">
                     <button id="sendBtn" onclick="sendMsg()">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                     </button>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -191,33 +142,19 @@
         let currentAccId = null;
         let currentChatId = null;
 
-        function openModal() {
-            document.getElementById('apiIdInput').value = '';
-            document.getElementById('apiHashInput').value = '';
-            document.getElementById('sessionInput').value = '';
-            document.getElementById('addAccError').innerText = '';
-            document.getElementById('addAccountModal').style.display = 'flex';
-        }
-
-        function closeModal() {
-            document.getElementById('addAccountModal').style.display = 'none';
-        }
+        function openModal() { document.getElementById('addAccountModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('addAccountModal').style.display = 'none'; }
 
         async function verifyKey() {
-            const key = document.getElementById('accessKeyInput').value;
-            if(!key) return;
-            
             const res = await fetch('/api/auth', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accessKey: key })
+                body: JSON.stringify({ accessKey: document.getElementById('accessKeyInput').value })
             });
             if (res.ok) {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainScreen').style.display = 'flex';
                 loadAccountsGrid();
-            } else {
-                document.getElementById('authError').innerText = "Invalid Access Key!";
-            }
+            } else { document.getElementById('authError').innerText = "Invalid Key!"; }
         }
 
         async function loadAccountsGrid() {
@@ -225,20 +162,10 @@
             const accounts = await res.json();
             const grid = document.getElementById('accountsView');
             grid.innerHTML = '';
-
-            if(accounts.length === 0) {
-                grid.innerHTML = '<p style="color:var(--text-muted); grid-column:1/-1; text-align:center; margin-top:30px; font-size:15px;">No accounts connected yet. Click on Add to start.</p>';
-            }
-
             accounts.forEach(acc => {
                 const card = document.createElement('div');
                 card.className = 'acc-card';
-                card.innerHTML = `
-                    <img src="${acc.photo}">
-                    <h3>${acc.name}</h3>
-                    <p>📱 ${acc.phone}</p>
-                    <div class="username">@${acc.username}</div>
-                `;
+                card.innerHTML = `<img src="${acc.photo}"><h3>${acc.name}</h3><p>📱 ${acc.phone}</p>`;
                 card.onclick = () => openAccountChats(acc.id, acc.name);
                 grid.appendChild(card);
             });
@@ -251,38 +178,29 @@
             document.getElementById('chatView').style.display = 'flex';
             document.getElementById('activeAccName').innerText = name;
             
-            // Mobile View: Show sidebar, hide msg area
-            if(window.innerWidth < 768) {
+            if(window.innerWidth < 900) {
                 document.getElementById('sidebar').classList.remove('hidden');
                 document.getElementById('messageArea').classList.add('hidden');
-            } else {
-                // Desktop View
-                document.getElementById('messageArea').classList.remove('hidden');
-                document.getElementById('messages').innerHTML = '<div style="text-align:center; margin-top:20px; color:var(--text-muted);">Select a chat to start messaging</div>';
             }
+
+            const list = document.getElementById('chatList');
+            list.innerHTML = '<p style="text-align:center; padding:20px; color:#777;">Loading chats...</p>';
 
             const res = await fetch(`/api/chats/${accId}`, { headers: { 'authorization': TOKEN } });
-            const chats = await res.json();
-            const list = document.getElementById('chatList');
-            list.innerHTML = '';
+            const data = await res.json();
             
-            if(chats.length === 0) {
-                 list.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:30px;">No chats found.</p>';
+            if(!res.ok) {
+                list.innerHTML = `<p style="text-align:center; padding:20px; color:#e74c3c;">Error: ${data.error}</p>`;
+                return;
             }
 
-            chats.forEach(c => {
+            list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:20px; color:#777;">No chats found.</p>' : '';
+            
+            data.forEach(c => {
                 const div = document.createElement('div');
                 div.className = 'chat-item';
-                div.innerHTML = `
-                    <div class="chat-dp">${c.name.charAt(0).toUpperCase()}</div>
-                    <div class="chat-details">
-                        <div class="chat-name">${c.name}</div>
-                        <div class="chat-last">${c.lastMsg || ''}</div>
-                    </div>
-                `;
-                div.onclick = () => {
-                    loadMessages(c.id, c.name);
-                };
+                div.innerHTML = `<div class="chat-dp">${c.name.charAt(0).toUpperCase()}</div><div class="chat-details"><div class="chat-name">${c.name}</div><div class="chat-last">${c.lastMsg || ''}</div></div>`;
+                div.onclick = () => loadMessages(c.id, c.name);
                 list.appendChild(div);
             });
         }
@@ -294,33 +212,31 @@
         }
 
         function closeChat() {
-            // Mobile View: Wapas chat list pe jao
             document.getElementById('messageArea').classList.add('hidden');
             document.getElementById('sidebar').classList.remove('hidden');
         }
 
         async function loadMessages(chatId, name) {
             currentChatId = chatId;
-            
-            // Message area open karo
             document.getElementById('messageArea').classList.remove('hidden');
-            if(window.innerWidth < 768) {
+            if(window.innerWidth < 900) {
                 document.getElementById('sidebar').classList.add('hidden');
             }
             
             document.getElementById('chatHeader').innerText = name;
-            document.getElementById('messages').innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:14px;">Loading messages...</div>';
+            const area = document.getElementById('messages');
+            area.innerHTML = '<p style="text-align:center; color:#777;">Loading...</p>';
             
             const res = await fetch(`/api/messages/${currentAccId}/${chatId}`, { headers: { 'authorization': TOKEN } });
-            const msgs = await res.json();
-            const area = document.getElementById('messages');
+            const data = await res.json();
             area.innerHTML = '';
             
-            if(msgs.length === 0) {
-                area.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:14px;">No messages here yet.</div>';
+            if(data.length === 0) {
+                area.innerHTML = '<p style="text-align:center; color:#777;">No messages here yet.</p>';
+                return;
             }
 
-            msgs.forEach(m => {
+            data.forEach(m => {
                 const row = document.createElement('div');
                 row.className = 'msg-row ' + (m.isMine ? 'mine' : '');
                 row.innerHTML = `<div class="msg ${m.isMine ? 'outgoing' : 'incoming'}">${m.text}</div>`;
@@ -333,9 +249,8 @@
             const text = document.getElementById('msgInput').value;
             if(!text || !currentAccId || !currentChatId) return;
 
-            document.getElementById('msgInput').value = ''; // clear input instantly
+            document.getElementById('msgInput').value = ''; 
             
-            // Optimistic UI Update (Turant message dikhao)
             const area = document.getElementById('messages');
             const row = document.createElement('div');
             row.className = 'msg-row mine';
@@ -350,21 +265,20 @@
         }
 
         async function addAccount() {
-            const apiId = document.getElementById('apiIdInput').value;
-            const apiHash = document.getElementById('apiHashInput').value;
             const session = document.getElementById('sessionInput').value;
-
             if(!session) {
-                document.getElementById('addAccError').innerText = "Session is required!";
+                document.getElementById('addAccError').innerText = "Session required!";
                 return;
             }
-
-            document.getElementById('addAccError').innerText = "Connecting... Please wait.";
-            document.getElementById('addAccError').style.color = "#f1c40f";
-
+            document.getElementById('addAccError').innerText = "Connecting...";
+            
             const res = await fetch('/api/add-account', {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
-                body: JSON.stringify({ apiId, apiHash, session })
+                body: JSON.stringify({ 
+                    apiId: document.getElementById('apiIdInput').value, 
+                    apiHash: document.getElementById('apiHashInput').value, 
+                    session 
+                })
             });
             
             if (res.ok) {
@@ -373,9 +287,8 @@
             } else {
                 const data = await res.json();
                 document.getElementById('addAccError').innerText = data.error;
-                document.getElementById('addAccError').style.color = "#e74c3c";
             }
         }
     </script>
 </body>
-</html>
+    </html>
