@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noobster Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
+        body { height: 100vh; background: #0e1621; color: #fff; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Login Screen */
+        #authScreen { position: fixed; inset: 0; background: #0e1621; display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-box { background: #17212b; padding: 40px; border-radius: 15px; width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .auth-box h2 { margin-bottom: 20px; }
+        .auth-box input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #2b5278; background: #0e1621; color: #fff; outline: none; }
+        .auth-box button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2b5278; color: #fff; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .auth-box button:hover { background: #3a6b99; }
+
+        /* Main App */
+        #mainScreen { display: none; flex: 1; flex-direction: column; }
+        .top-header { background: #17212b; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #101921; }
+        .add-btn { background: #2b5278; color: #fff; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* Accounts Grid */
+        #accountsView { flex: 1; padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; align-content: start; }
+        .acc-card { background: #17212b; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; border: 1px solid #101921; }
+        .acc-card:hover { transform: translateY(-3px); border-color: #2b5278; }
+        .acc-card img { width: 70px; height: 70px; border-radius: 50%; margin-bottom: 10px; }
+        .acc-card h3 { font-size: 16px; margin-bottom: 5px; }
+        .acc-card p { font-size: 13px; color: #a0a0a0; margin-bottom: 5px; }
+        .acc-card .username { font-size: 12px; color: #2b5278; }
+
+        /* Chat View */
+        #chatView { display: none; flex: 1; flex-direction: row; }
+        
+        /* Sidebar */
+        #sidebar { width: 350px; background: #17212b; border-right: 1px solid #101921; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #101921; background: #17212b; }
+        .back-btn { background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 10px; }
+        #chatList { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 12px 15px; border-bottom: 1px solid #101921; cursor: pointer; }
+        .chat-item:hover, .chat-item.active { background: #202b36; }
+        .chat-name { font-weight: 500; font-size: 15px; margin-bottom: 3px; }
+        .chat-last { font-size: 13px; color: #a0a0a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Message Area */
+        #messageArea { flex: 1; display: flex; flex-direction: column; background: #0e1621; background-image: url('https://web.telegram.org/img/bg_0.png'); background-size: cover; background-blend-mode: overlay; }
+        #chatHeader { padding: 15px; background: #17212b; border-bottom: 1px solid #101921; font-weight: 500; }
+        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        
+        .msg-row { display: flex; width: 100%; }
+        .msg-row.mine { justify-content: flex-end; }
+        .msg { padding: 8px 12px; border-radius: 12px; max-width: 70%; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+        .msg.incoming { background: #182533; border-bottom-left-radius: 4px; }
+        .msg.outgoing { background: #2b5278; border-bottom-right-radius: 4px; }
+
+        /* Input */
+        #inputArea { padding: 15px; background: #17212b; display: flex; gap: 10px; }
+        #msgInput { flex: 1; padding: 12px 20px; border-radius: 20px; border: none; background: #0e1621; color: #fff; outline: none; }
+        #sendBtn { background: #2b5278; border: none; padding: 0 20px; border-radius: 20px; color: #fff; cursor: pointer; font-weight: bold; }
+
+        /* Modal */
+        #addAccountModal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background: #17212b; padding: 30px; border-radius: 15px; width: 400px; display: flex; flex-direction: column; gap: 15px; }
+        .modal-box input { padding: 12px; border-radius: 8px; border: 1px solid #2b5278; background: #0e1621; color: #fff; outline: none; }
+        .modal-box button { padding: 12px; border-radius: 8px; border: none; background: #2b5278; color: #fff; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- ACCESS KEY LOGIN -->
+    <div id="authScreen">
+        <div class="auth-box">
+            <h2>Noobster Panel</h2>
+            <input type="password" id="accessKeyInput" placeholder="Enter Access Key (noobster)">
+            <button onclick="verifyKey()">Login</button>
+            <p id="authError" style="color: #e74c3c; font-size: 13px; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    <!-- ADD ACCOUNT MODAL -->
+    <div id="addAccountModal">
+        <div class="modal-box">
+            <h3>Add Account</h3>
+            <input type="text" id="apiIdInput" placeholder="API ID (Optional)">
+            <input type="text" id="apiHashInput" placeholder="API HASH (Optional)">
+            <input type="text" id="sessionInput" placeholder="Paste String Session here...">
+            <button onclick="addAccount()">Connect</button>
+            <p id="addAccError" style="color: #e74c3c; font-size: 13px;"></p>
+            <button onclick="document.getElementById('addAccountModal').style.display='none'" style="background: #333;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainScreen">
+        <div class="top-header">
+            <h2>My Accounts</h2>
+            <button class="add-btn" onclick="document.getElementById('addAccountModal').style.display='flex'">+ Add Account</button>
+        </div>
+        <div id="accountsView"></div>
+
+        <div id="chatView">
+            <div id="sidebar">
+                <div class="sidebar-header">
+                    <button class="back-btn" onclick="backToAccounts()">←</button>
+                    <span id="activeAccName">Account</span>
+                </div>
+                <div id="chatList"></div>
+            </div>
+            <div id="messageArea">
+                <div id="chatHeader">Select a chat</div>
+                <div id="messages"></div>
+                <div id="inputArea">
+                    <input type="text" id="msgInput" placeholder="Write a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+                    <button id="sendBtn" onclick="sendMsg()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TOKEN = "secure_token_noobster";
+        let currentAccId = null;
+        let currentChatId = null;
+
+        async function verifyKey() {
+            const key = document.getElementById('accessKeyInput').value;
+            const res = await fetch('/api/auth', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accessKey: key })
+            });
+            if (res.ok) {
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('mainScreen').style.display = 'flex';
+                loadAccountsGrid();
+            } else {
+                document.getElementById('authError').innerText = "Invalid Key!";
+            }
+        }
+
+        async function loadAccountsGrid() {
+            const res = await fetch('/api/accounts', { headers: { 'authorization': TOKEN } });
+            const accounts = await res.json();
+            const grid = document.getElementById('accountsView');
+            grid.innerHTML = '';
+
+            accounts.forEach(acc => {
+                const card = document.createElement('div');
+                card.className = 'acc-card';
+                card.innerHTML = `
+                    <img src="${acc.photo}">
+                    <h3>${acc.name}</h3>
+                    <p>📱 ${acc.phone}</p>
+                    <div class="username">@${acc.username}</div>
+                `;
+                card.onclick = () => openAccountChats(acc.id, acc.name);
+                grid.appendChild(card);
+            });
+        }
+
+        async function openAccountChats(accId, name) {
+            currentAccId = accId;
+            document.getElementById('accountsView').style.display = 'none';
+            document.querySelector('.top-header').style.display = 'none';
+            document.getElementById('chatView').style.display = 'flex';
+            document.getElementById('activeAccName').innerText = name;
+
+            const res = await fetch(`/api/chats/${accId}`, { headers: { 'authorization': TOKEN } });
+            const chats = await res.json();
+            const list = document.getElementById('chatList');
+            list.innerHTML = '';
+            
+            chats.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'chat-item';
+                div.innerHTML = `<div class="chat-name">${c.name}</div><div class="chat-last">${c.lastMsg || ''}</div>`;
+                div.onclick = () => {
+                    document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                    div.classList.add('active');
+                    loadMessages(c.id, c.name);
+                };
+                list.appendChild(div);
+            });
+        }
+
+        function backToAccounts() {
+            document.getElementById('chatView').style.display = 'none';
+            document.querySelector('.top-header').style.display = 'flex';
+            document.getElementById('accountsView').style.display = 'grid';
+        }
+
+        async function loadMessages(chatId, name) {
+            currentChatId = chatId;
+            document.getElementById('chatHeader').innerText = name;
+            const res = await fetch(`/api/messages/${currentAccId}/${chatId}`, { headers: { 'authorization': TOKEN } });
+            const msgs = await res.json();
+            const area = document.getElementById('messages');
+            area.innerHTML = '';
+            
+            msgs.forEach(m => {
+                const row = document.createElement('div');
+                row.className = 'msg-row ' + (m.isMine ? 'mine' : '');
+                row.innerHTML = `<div class="msg ${m.isMine ? 'outgoing' : 'incoming'}">${m.text}</div>`;
+                area.appendChild(row);
+            });
+            area.scrollTop = area.scrollHeight;
+        }
+
+        async function sendMsg() {
+            const text = document.getElementById('msgInput').value;
+            if(!text) return;
+            await fetch(`/api/send/${currentAccId}/${currentChatId}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
+                body: JSON.stringify({ text })
+            });
+            document.getElementById('msgInput').value = '';
+            loadMessages(currentChatId, document.getElementById('chatHeader').innerText);
+        }
+
+        async function addAccount() {
+            const apiId = document.getElementById('apiIdInput').value;
+            const apiHash = document.getElementById('apiHashInput').value;
+            const session = document.getElementById('sessionInput').value;
+
+            const res = await fetch('/api/add-account', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
+                body: JSON.stringify({ apiId, apiHash, session })
+            });
+            if (res.ok) {
+                document.getElementById('addAccountModal').style.display = 'none';
+                loadAccountsGrid();
+            } else {
+                const data = await res.json();
+                document.getElementById('addAccError').innerText = data.error;
+            }
+        }
+    </script>
+</body>
+  </html>
