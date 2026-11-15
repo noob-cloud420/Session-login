@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from pyrogram import Client as PyroClient
 import asyncio
 import os
 
@@ -16,15 +15,6 @@ accounts = {}
 
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
-
-def get_loop():
-    """Asyncio loop fix for Flask/Gunicorn"""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop
 
 @app.route('/api/auth', methods=['POST'])
 def auth():
@@ -50,6 +40,8 @@ def add_account():
         asyncio.set_event_loop(loop)
 
         if session_str.startswith("BQ") or session_str.startswith("1B"):
+            # Pyrogram ko yahin import kar rahe hain taaki crash na ho
+            from pyrogram import Client as PyroClient
             client = PyroClient(":memory:", api_id=api_id, api_hash=api_hash, session_string=session_str, in_memory=True)
             loop.run_until_complete(client.connect())
             me = loop.run_until_complete(client.get_me())
