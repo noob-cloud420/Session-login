@@ -92,14 +92,17 @@ def get_chats(acc_id):
     try:
         if data['type'] == 'pyrogram':
             async def fetch_pyro():
-                # Limit 20 taaki fast ho
                 return [d async for d in client.get_dialogs(limit=20)]
             dialogs = loop.run_until_complete(fetch_pyro())
             for d in dialogs:
+                # 🔥 Yahan fix kiya gaya hai (Pyrogram Chat object handling)
+                last_msg = "[Media]" if getattr(d, 'last_message', None) else "[No messages]"
+                name = getattr(d.chat, 'first_name', None) or getattr(d.chat, 'title', None) or getattr(d.chat, 'username', None) or "Unknown"
+                
                 chats.append({
                     "id": str(d.chat.id), 
-                    "name": d.chat.first_name or d.chat.title or "Unknown", 
-                    "lastMsg": d.chat.last_message.text if d.chat.last_message and d.chat.last_message.text else "[Media]"
+                    "name": name, 
+                    "lastMsg": last_msg
                 })
         else:
             async def fetch_tele():
@@ -109,7 +112,7 @@ def get_chats(acc_id):
                 chats.append({
                     "id": str(d.id), 
                     "name": d.name or "Unknown", 
-                    "lastMsg": d.message.message if d.message else "[Media]"
+                    "lastMsg": d.message.message if getattr(d, 'message', None) else "[No messages]"
                 })
         return jsonify(chats)
     except Exception as e:
