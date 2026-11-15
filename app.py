@@ -23,7 +23,7 @@ def auth():
     return jsonify({"error": "Invalid Key"}), 401
 
 # ============================================
-# ALAG ASYNC FUNCTIONS (Error Fix)
+# ASYNC LOGIN FUNCTIONS
 # ============================================
 async def login_pyrogram(session_str, api_id, api_hash):
     from pyrogram import Client as PyroClient
@@ -35,10 +35,18 @@ async def login_pyrogram(session_str, api_id, api_hash):
 async def login_telethon(session_str, api_id, api_hash):
     client = TelegramClient(StringSession(session_str), api_id, api_hash)
     await client.connect()
+    
+    # Auth check
     if not await client.is_user_authorized():
+        await client.disconnect()
         return None, None
-    me = await client.get_me()
-    return client, me
+        
+    try:
+        me = await client.get_me()
+        return client, me
+    except Exception as e:
+        await client.disconnect()
+        raise e
 
 @app.route('/api/add-account', methods=['POST'])
 def add_account():
@@ -57,16 +65,29 @@ def add_account():
             # Pyrogram Login
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            client, me = loop.run_until_complete(login_pyrogram(session_str, api_id, api_hash))
             
+            try:
+                client, me = loop.run_until_complete(login_pyrogram(session_str, api_id, api_hash))
+            except Exception as e:
+                if "AUTH_KEY_UNREGISTERED" in str(e) or "401" in str(e):
+                    return jsonify({"error": "Pyrogram Session Expired/Invalid! Generate a fresh one."}), 401
+                raise e
+                
             acc_id = str(me.id)
             accounts[acc_id] = {"type": "pyrogram", "client": client, "me": me, "loop": loop}
             return jsonify({"success": True, "id": acc_id})
+            
         else:
             # Telethon Login
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            client, me = loop.run_until_complete(login_telethon(session_str, api_id, api_hash))
+            
+            try:
+                client, me = loop.run_until_complete(login_telethon(session_str, api_id, api_hash))
+            except Exception as e:
+                if "AUTH_KEY_UNREGISTERED" in str(e) or "401" in str(e):
+                    return jsonify({"error": "Telethon Session Expired/Invalid! Generate a fresh one."}), 401
+                raise e
 
             if not client:
                 return jsonify({"error": "Invalid Session or Expired"}), 401
@@ -76,7 +97,7 @@ def add_account():
             return jsonify({"success": True, "id": acc_id})
 
     except Exception as e:
-        print("LOGIN ERROR:", e) # Terminal me error dikhega
+        print("LOGIN ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/accounts', methods=['GET'])
