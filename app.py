@@ -7,8 +7,8 @@ import os
 app = Flask(__name__)
 
 MASTER_ACCESS_KEY = "noobster"
-DEFAULT_API_ID = 1234567      # <-- Yahan apna API ID daal
-DEFAULT_API_HASH = "your_hash" # <-- Yahan apna API Hash daal
+DEFAULT_API_ID = 1234567      
+DEFAULT_API_HASH = "your_hash" 
 
 accounts = {}
 
@@ -22,9 +22,6 @@ def auth():
         return jsonify({"success": True, "token": "secure_token_noobster"})
     return jsonify({"error": "Invalid Key"}), 401
 
-# ============================================
-# ASYNC LOGIN FUNCTIONS
-# ============================================
 async def login_pyrogram(session_str, api_id, api_hash):
     from pyrogram import Client as PyroClient
     client = PyroClient(":memory:", api_id=api_id, api_hash=api_hash, session_string=session_str, in_memory=True)
@@ -35,69 +32,37 @@ async def login_pyrogram(session_str, api_id, api_hash):
 async def login_telethon(session_str, api_id, api_hash):
     client = TelegramClient(StringSession(session_str), api_id, api_hash)
     await client.connect()
-    
-    # Auth check
     if not await client.is_user_authorized():
         await client.disconnect()
         return None, None
-        
-    try:
-        me = await client.get_me()
-        return client, me
-    except Exception as e:
-        await client.disconnect()
-        raise e
+    me = await client.get_me()
+    return client, me
 
 @app.route('/api/add-account', methods=['POST'])
 def add_account():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
-    
     data = request.json
     session_str = data.get('session', '').strip()
     api_id = int(data.get('apiId') or DEFAULT_API_ID)
     api_hash = data.get('apiHash') or DEFAULT_API_HASH
 
-    if not session_str:
-        return jsonify({"error": "Session required"}), 400
+    if not session_str: return jsonify({"error": "Session required"}), 400
 
     try:
-        if session_str.startswith("BQ") or session_str.startswith("1B"):
-            # Pyrogram Login
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                client, me = loop.run_until_complete(login_pyrogram(session_str, api_id, api_hash))
-            except Exception as e:
-                if "AUTH_KEY_UNREGISTERED" in str(e) or "401" in str(e):
-                    return jsonify({"error": "Pyrogram Session Expired/Invalid! Generate a fresh one."}), 401
-                raise e
-                
-            acc_id = str(me.id)
-            accounts[acc_id] = {"type": "pyrogram", "client": client, "me": me, "loop": loop}
-            return jsonify({"success": True, "id": acc_id})
-            
-        else:
-            # Telethon Login
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                client, me = loop.run_until_complete(login_telethon(session_str, api_id, api_hash))
-            except Exception as e:
-                if "AUTH_KEY_UNREGISTERED" in str(e) or "401" in str(e):
-                    return jsonify({"error": "Telethon Session Expired/Invalid! Generate a fresh one."}), 401
-                raise e
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-            if not client:
-                return jsonify({"error": "Invalid Session or Expired"}), 401
-                
-            acc_id = str(me.id)
-            accounts[acc_id] = {"type": "telethon", "client": client, "me": me, "loop": loop}
-            return jsonify({"success": True, "id": acc_id})
+        if session_str.startswith("BQ") or session_str.startswith("1B"):
+            client, me = loop.run_until_complete(login_pyrogram(session_str, api_id, api_hash))
+            accounts[str(me.id)] = {"type": "pyrogram", "client": client, "me": me, "loop": loop}
+            return jsonify({"success": True, "id": str(me.id)})
+        else:
+            client, me = loop.run_until_complete(login_telethon(session_str, api_id, api_hash))
+            if not client: return jsonify({"error": "Invalid Session or Expired"}), 401
+            accounts[str(me.id)] = {"type": "telethon", "client": client, "me": me, "loop": loop}
+            return jsonify({"success": True, "id": str(me.id)})
 
     except Exception as e:
-        print("LOGIN ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/accounts', methods=['GET'])
@@ -110,7 +75,6 @@ def get_accounts():
             "id": acc_id,
             "name": getattr(me, 'first_name', 'Unknown') or "Unknown",
             "phone": getattr(me, 'phone_number', 'Hidden'),
-            "username": getattr(me, 'username', 'None') or "None",
             "photo": f"https://ui-avatars.com/api/?name={getattr(me, 'first_name', 'U')}&background=2b5278&color=fff"
         })
     return jsonify(acc_list)
@@ -128,7 +92,8 @@ def get_chats(acc_id):
     try:
         if data['type'] == 'pyrogram':
             async def fetch_pyro():
-                return [d async for d in client.get_dialogs(limit=30)]
+                # Limit 20 taaki fast ho
+                return [d async for d in client.get_dialogs(limit=20)]
             dialogs = loop.run_until_complete(fetch_pyro())
             for d in dialogs:
                 chats.append({
@@ -138,7 +103,7 @@ def get_chats(acc_id):
                 })
         else:
             async def fetch_tele():
-                return await client.get_dialogs(limit=30)
+                return await client.get_dialogs(limit=20)
             dialogs = loop.run_until_complete(fetch_tele())
             for d in dialogs:
                 chats.append({
@@ -148,6 +113,7 @@ def get_chats(acc_id):
                 })
         return jsonify(chats)
     except Exception as e:
+        print("CHAT FETCH ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/messages/<acc_id>/<chat_id>', methods=['GET'])
@@ -163,13 +129,13 @@ def get_messages(acc_id, chat_id):
     try:
         if data['type'] == 'pyrogram':
             async def fetch_msgs_pyro():
-                return [m async for m in client.get_messages(chat_id, limit=40)]
+                return [m async for m in client.get_messages(chat_id, limit=20)]
             messages = loop.run_until_complete(fetch_msgs_pyro())
             for m in reversed(messages):
                 msgs.append({"text": m.text or "[Media]", "isMine": m.outgoing})
         else:
             async def fetch_msgs_tele():
-                return await client.get_messages(chat_id, limit=40)
+                return await client.get_messages(chat_id, limit=20)
             messages = loop.run_until_complete(fetch_msgs_tele())
             for m in reversed(messages):
                 msgs.append({"text": m.message or "[Media]", "isMine": m.out})
