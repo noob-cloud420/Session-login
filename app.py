@@ -8,14 +8,23 @@ import os
 app = Flask(__name__)
 
 MASTER_ACCESS_KEY = "noobster"
-DEFAULT_API_ID = 1234567       # <-- Apna API ID daal
-DEFAULT_API_HASH = "your_hash" # <-- Apna API Hash daal
+# Apna API ID aur HASH yahan daal
+DEFAULT_API_ID = 1234567  
+DEFAULT_API_HASH = "your_api_hash" 
 
-# Memory store for accounts (restart pe reset ho jayenge)
 accounts = {}
 
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
+
+def get_loop():
+    """Asyncio loop fix for Flask/Gunicorn"""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
 
 @app.route('/api/auth', methods=['POST'])
 def auth():
@@ -40,15 +49,12 @@ def add_account():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        # Pyrogram detect
         if session_str.startswith("BQ") or session_str.startswith("1B"):
             client = PyroClient(":memory:", api_id=api_id, api_hash=api_hash, session_string=session_str, in_memory=True)
             loop.run_until_complete(client.connect())
             me = loop.run_until_complete(client.get_me())
             acc_id = str(me.id)
             accounts[acc_id] = {"type": "pyrogram", "client": client, "me": me, "loop": loop}
-            
-        # Telethon detect
         else:
             client = TelegramClient(StringSession(session_str), api_id, api_hash)
             loop.run_until_complete(client.connect())
