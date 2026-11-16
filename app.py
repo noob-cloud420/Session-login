@@ -1,17 +1,27 @@
 import asyncio
 import os
 
-# 🔥 PYTHON 3.14 + PYROGRAM CRASH FIX (Sabse upar hona chahiye)
+# 🔥 PYTHON 3.14 FIX: Pyrogram load hone se pehle loop create karna zaroori hai
 try:
     asyncio.get_event_loop()
 except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
 
 from flask import Flask, request, jsonify, render_template
-from pyrogram import Client as PyroClient
-from pyrogram.errors import SessionPasswordNeeded
 from telethon import TelegramClient
 from telethon.sessions import StringSession
+from telethon.tl.types import Channel, Chat
+from telethon.tl.types.account import PasswordInputSettings
+from telethon.tl.functions.account import (
+    GetAuthorizationsRequest, 
+    ResetAuthorizationRequest,
+    GetPasswordRequest,
+    UpdatePasswordSettingsRequest,
+    SendVerifyEmailCodeRequest,
+    VerifyEmailRequest
+)
+
+app = Flask(__name__)
 
 MASTER_ACCESS_KEY = "noobster"
 DEFAULT_API_ID = 1234567      
@@ -22,6 +32,15 @@ accounts = {}
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
 
+# Thread-safe async runner
+def run_async(coro):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
 @app.route('/api/auth', methods=['POST'])
 def auth():
     data = request.json
@@ -29,21 +48,14 @@ def auth():
         return jsonify({"success": True, "token": "secure_token_noobster"})
     return jsonify({"error": "Invalid Key"}), 401
 
-# 🔥 ASYNC FIX FOR FLASK
-def run_async(coro):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result = loop.run_until_complete(coro)
-    loop.close()
-    return result
-
-async def connect_pyro(session_str, api_id, api_hash):
+async def login_pyrogram(session_str, api_id, api_hash):
+    from pyrogram import Client as PyroClient
     client = PyroClient(":memory:", api_id=api_id, api_hash=api_hash, session_string=session_str, in_memory=True)
-    await client.connect()
+    await client.start()
     me = await client.get_me()
     return client, me
 
-async def connect_tele(session_str, api_id, api_hash):
+async def login_telethon(session_str, api_id, api_hash):
     client = TelegramClient(StringSession(session_str), api_id, api_hash)
     await client.connect()
     if not await client.is_user_authorized():
@@ -64,10 +76,10 @@ def add_account():
 
     try:
         if session_str.startswith("BQ") or session_str.startswith("1B"):
-            client, me = run_async(connect_pyro(session_str, api_id, api_hash))
+            client, me = run_async(login_pyrogram(session_str, api_id, api_hash))
             accounts[str(me.id)] = {"type": "pyrogram", "client": client, "me": me}
         else:
-            client, me = run_async(connect_tele(session_str, api_id, api_hash))
+            client, me = run_async(login_telethon(session_str, api_id, api_hash))
             if not client: return jsonify({"error": "Invalid Session or Expired"}), 401
             accounts[str(me.id)] = {"type": "telethon", "client": client, "me": me}
 
@@ -139,19 +151,13 @@ def get_profile(acc_id):
 
         if data['type'] == 'pyrogram':
             async def fetch_pyro():
-                # Pyrogram me 2FA check (approx) aur Devices
                 try:
                     pwd = await client.get_password_hint()
                     fa = pwd is not None
                 except: fa = False
-                
                 return fa, [], []
-
             has_2fa, devices, admin_chats = run_async(fetch_pyro())
         else:
-            from telethon.tl.functions.account import GetAuthorizationsRequest, GetPasswordRequest
-            from telethon.tl.types import Channel, Chat
-            
             async def fetch_tele():
                 pwd_info = await client(GetPasswordRequest())
                 auths = await client(GetAuthorizationsRequest())
@@ -166,7 +172,6 @@ def get_profile(acc_id):
                                 admins.append({"name": dialog.name, "type": "Owner" if perms.is_creator else "Admin"})
                         except: pass
                 return pwd_info.has_password, devs, admins
-
             has_2fa, devices, admin_chats = run_async(fetch_tele())
 
         return jsonify({
@@ -178,4 +183,117 @@ def get_profile(acc_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ... (Baaki routes same rahenge: terminate, 2fa, email) ...
+@app.route('/api/terminate', methods=['POST'])
+def terminate_sessions():
+    if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    acc_id, action = data.get('acc_id'), data.get('action')
+
+    if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
+    account = accounts[acc_id]
+    client = account['client']
+
+    try:
+        if account['type'] != 'telethon':
+            return jsonify({"error": "Terminate only supported for Telethon."}), 400
+
+        async def terminate():
+            auths = await client(GetAuthorizationsRequest())
+            count = 0
+            for auth in auths.authorizations:
+                if action == "current" and auth.current:
+                    await client(ResetAuthorizationRequest(hash=auth.hash))
+                    count += 1
+                elif action == "all" and not auth.current:
+                    await client(ResetAuthorizationRequest(hash=auth.hash))
+                    count += 1
+            return count
+
+        count = run_async(terminate())
+        if action == "current": del accounts[acc_id] 
+        return jsonify({"success": True, "message": f"Terminated {count} session(s)."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/change-2fa', methods=['POST'])
+def change_2fa():
+    if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    acc_id, new_pass = data.get('acc_id'), data.get('new_password')
+
+    if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
+    account = accounts[acc_id]
+    client = account['client']
+
+    try:
+        if account['type'] != 'telethon':
+            return jsonify({"error": "2FA Reset only supported for Telethon."}), 400
+
+        async def set_pwd():
+            pwd_info = await client(GetPasswordRequest())
+            if not pwd_info.has_password:
+                return "NO_2FA"
+            
+            await client(UpdatePasswordSettingsRequest(
+                password=pwd_info,
+                new_settings=PasswordInputSettings(
+                    new_algo=pwd_info.new_algo, 
+                    new_password_hash=pwd_info.srp_B,
+                    hint="Reset via Panel", 
+                    email=None
+                )
+            ))
+            return "SUCCESS"
+
+        result = run_async(set_pwd())
+        if result == "NO_2FA":
+            return jsonify({"error": "2FA is not enabled on this account."}), 400
+            
+        return jsonify({"success": True, "message": "2FA Password changed successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/request-email-otp', methods=['POST'])
+def request_email_otp():
+    if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    acc_id, new_email = data.get('acc_id'), data.get('new_email')
+
+    if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
+    account = accounts[acc_id]
+    client = account['client']
+
+    try:
+        if account['type'] != 'telethon':
+            return jsonify({"error": "Email change only supported for Telethon."}), 400
+
+        async def send_otp(): await client(SendVerifyEmailCodeRequest(email=new_email))
+        run_async(send_otp())
+        return jsonify({"success": True, "message": "OTP sent to new email."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/verify-email-otp', methods=['POST'])
+def verify_email_otp():
+    if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    acc_id, new_email, otp = data.get('acc_id'), data.get('new_email'), data.get('otp_code')
+
+    if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
+    account = accounts[acc_id]
+    client = account['client']
+
+    try:
+        async def verify(): await client(VerifyEmailRequest(email=new_email, code=otp))
+        run_async(verify())
+        return jsonify({"success": True, "message": "Email changed successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
