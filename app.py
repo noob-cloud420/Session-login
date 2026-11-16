@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-# 🔥 PYTHON 3.14 FIX: Pyrogram load hone se pehle loop create karna zaroori hai
+# 🔥 PYTHON 3.14 FIX
 try:
     asyncio.get_event_loop()
 except RuntimeError:
@@ -32,7 +32,6 @@ accounts = {}
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
 
-# Thread-safe async runner
 def run_async(coro):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -109,7 +108,7 @@ def get_chats(acc_id):
         "lastMsg": "Verification codes and service updates"
     }])
 
-# 🔥 MESSAGES ROUTE FIXED (Pyrogram get_history used)
+# 🔥 MESSAGES ROUTE FIXED (Using get_chat_history)
 @app.route('/api/messages/<acc_id>/<chat_id>', methods=['GET'])
 def get_messages(acc_id, chat_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -123,9 +122,9 @@ def get_messages(acc_id, chat_id):
     try:
         if data['type'] == 'pyrogram':
             async def fetch():
-                # Fix: limit keyword hata kar get_history use kiya
                 messages = []
-                async for m in client.get_history(chat_id=777000, limit=20):
+                # 🔥 Yahan fix kiya gaya hai
+                async for m in client.get_chat_history(chat_id=int(777000), limit=20):
                     messages.append(m)
                 return messages
             
@@ -220,6 +219,28 @@ def terminate_sessions():
         count = run_async(terminate())
         if action == "current": del accounts[acc_id] 
         return jsonify({"success": True, "message": f"Terminated {count} session(s)."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 🔥 LOGOUT FROM TELEGRAM COMPLETELY
+@app.route('/api/logout', methods=['POST'])
+def logout_session():
+    if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    acc_id = data.get('acc_id')
+
+    if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
+    account = accounts[acc_id]
+    client = account['client']
+
+    try:
+        async def do_logout():
+            await client.log_out()
+        
+        run_async(do_logout())
+        del accounts[acc_id] 
+        
+        return jsonify({"success": True, "message": "Session terminated from Telegram successfully."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
