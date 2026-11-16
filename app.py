@@ -109,10 +109,12 @@ def get_chats(acc_id):
         "lastMsg": "Verification codes and service updates"
     }])
 
+# 🔥 MESSAGES ROUTE FIXED (Pyrogram get_history used)
 @app.route('/api/messages/<acc_id>/<chat_id>', methods=['GET'])
 def get_messages(acc_id, chat_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
+    if chat_id != "777000": return jsonify({"error": "Only Notification Bot chat is accessible."}), 403
 
     data = accounts[acc_id]
     client = data['client']
@@ -120,7 +122,13 @@ def get_messages(acc_id, chat_id):
 
     try:
         if data['type'] == 'pyrogram':
-            async def fetch(): return [m async for m in client.get_messages(777000, limit=20)]
+            async def fetch():
+                # Fix: limit keyword hata kar get_history use kiya
+                messages = []
+                async for m in client.get_history(chat_id=777000, limit=20):
+                    messages.append(m)
+                return messages
+            
             messages = run_async(fetch())
             for m in reversed(messages):
                 msgs.append({"text": m.text or "[Media]", "isMine": m.outgoing})
