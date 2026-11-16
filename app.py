@@ -1,12 +1,17 @@
+import asyncio
+import os
+
+# 🔥 PYTHON 3.14 + PYROGRAM CRASH FIX (Sabse upar hona chahiye)
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
 from flask import Flask, request, jsonify, render_template
 from pyrogram import Client as PyroClient
 from pyrogram.errors import SessionPasswordNeeded
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-import asyncio
-import os
-
-app = Flask(__name__)
 
 MASTER_ACCESS_KEY = "noobster"
 DEFAULT_API_ID = 1234567      
