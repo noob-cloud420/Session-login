@@ -11,7 +11,7 @@ except RuntimeError:
 from flask import Flask, request, jsonify, render_template
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.tl.types import Channel, Chat
+from telethon.tl.types import Channel, Chat, ChannelForbidden
 from telethon.tl.types.account import PasswordInputSettings
 from telethon.tl.functions.account import (
     GetAuthorizationsRequest,
@@ -21,7 +21,8 @@ from telethon.tl.functions.account import (
     SendVerifyEmailCodeRequest,
     VerifyEmailRequest
 )
-from telethon.tl.functions.messages import ExportChatInviteRequest
+from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.functions.messages import ExportChatInviteRequest, GetExportedChatInvitesRequest
 
 app = Flask(__name__)
 MASTER_ACCESS_KEY = os.environ.get("MASTER_ACCESS_KEY", "noobster")
@@ -135,38 +136,61 @@ def get_messages(acc_id, chat_id):
     except Exception as e:
         return jsonify({"error": f"Msg Error: {str(e)}"}), 500
 
-# ---------- 🔧 safe invite helper ----------
-async def _telethon_invite(client, entity):
-    """Try multiple ways to get an invite link for a private channel/gc."""
-    # 1) already-exported link on entity
-    try:
-        link = getattr(entity, "username", None)
-        if link:
-            return f"https://t.me/{link}"
-    except Exception:
-        pass
-    # 2) ExportChatInviteRequest (admin only)
+# ---------- 🔧 DEEP RESOLVE: username + invite link ----------
+async def _resolve_channel_link(client, entity):
+    """
+    Returns (username, invite_link).
+    Strategy:
+      1. Direct .username from entity
+      2. Full channel fetch → .username
+      3. ExportChatInviteRequest (admin/owner can create new invite)
+      4. GetExportedChatInvitesRequest (list existing invites)
+    """
+    username = getattr(entity, "username", None)
+    invite = None
+
+    # 1) try refresh via get_entity(id)
+    if not username:
+        try:
+            fresh = await client.get_entity(entity.id)
+            username = getattr(fresh, "username", None)
+            if username:
+                return username, None
+        except Exception:
+            pass
+
+    # 2) full channel info (has .username and .invite_link sometimes)
+    if not username and isinstance(entity, Channel):
+        try:
+            full = await client(GetFullChannelRequest(channel=entity))
+            ch = full.chats[0]
+            username = getattr(ch, "username", None)
+            if username:
+                return username, None
+        except Exception:
+            pass
+
+    # 3) export a new invite link (only works if admin/owner with invite rights)
     try:
         inv = await client(ExportChatInviteRequest(peer=entity))
-        if getattr(inv, "link", None):
-            return inv.link
+        link = getattr(inv, "link", None)
+        if link:
+            return None, link
     except Exception:
         pass
-    # 3) See if entity has an existing exported invite via iter
+
+    # 4) list previously exported invites
     try:
-        from telethon.tl.functions.messages import GetExportedChatInvitesRequest
-        try:
-            from telethon.tl.types import InputPeerChannel
-            peer = InputPeerChannel(channel_id=entity.id, access_hash=entity.access_hash)
-        except Exception:
-            peer = entity
         res = await client(GetExportedChatInvitesRequest(
-            peer=peer, admin_id="me", limit=1))
-        if getattr(res, "invites", None):
-            return f"https://t.me/{res.invites[0].link.lstrip('https://t.me/')}"
+            peer=entity, admin_id="me", limit=5))
+        for inv in (getattr(res, "invites", []) or []):
+            link = getattr(inv, "link", None)
+            if link:
+                return None, link
     except Exception:
         pass
-    return None
+
+    return username, invite
 
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
@@ -196,7 +220,7 @@ def get_profile(acc_id):
                 except Exception:
                     pass
                 try:
-                    async for dlg in client.get_dialogs(limit=100):
+                    async for dlg in client.get_dialogs(limit=200):
                         ch = getattr(dlg, "chat", None)
                         if ch is None: continue
                         ctype = str(getattr(ch, "type", "")).lower()
@@ -210,6 +234,13 @@ def get_profile(acc_id):
                             is_owner = "owner" in status
                             username = getattr(ch, "username", None)
                             invite = None
+                            if not username:
+                                # deep fetch
+                                try:
+                                    full = await client.get_chat(ch.id)
+                                    username = getattr(full, "username", None)
+                                except Exception:
+                                    pass
                             if not username:
                                 try:
                                     invite = await client.export_chat_invite_link(ch.id)
@@ -234,15 +265,17 @@ def get_profile(acc_id):
                 devs = [{"device": a.device_model, "ip": a.ip, "current": a.current}
                         for a in auths.authorizations]
                 admins = []
-                async for dialog in client.iter_dialogs(limit=100):
-                    if not isinstance(dialog.entity, (Channel, Chat)):
+                async for dialog in client.iter_dialogs(limit=200):
+                    ent = dialog.entity
+                    if not isinstance(ent, (Channel, Chat)):
+                        continue
+                    if isinstance(ent, ChannelForbidden):
                         continue
                     try:
-                        perms = await client.get_permissions(dialog.entity, "me")
+                        perms = await client.get_permissions(ent, "me")
                         if not (perms.is_admin or perms.is_creator):
                             continue
-                        username = getattr(dialog.entity, "username", None)
-                        invite = None if username else await _telethon_invite(client, dialog.entity)
+                        username, invite = await _resolve_channel_link(client, ent)
                         admins.append({
                             "name": dialog.name,
                             "type": "Owner" if perms.is_creator else "Admin",
