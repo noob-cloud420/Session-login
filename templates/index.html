@@ -6,55 +6,47 @@
     <title>Noobster Panel</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-main: #0e1621; --bg-sidebar: #17212b; --bg-hover: #202b36;
-            --bg-active: #2b5278; --text-main: #ffffff; --text-muted: #7d8b99;
-            --border-color: #101921; --bubble-in: #182533; --bubble-out: #2b5278; --accent: #2b5278;
-        }
+        :root { --bg-main: #0e1621; --bg-sidebar: #17212b; --bg-hover: #202b36; --text-main: #ffffff; --text-muted: #7d8b99; --border-color: #101921; --bubble-in: #182533; --bubble-out: #2b5278; --accent: #2b5278; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { height: 100vh; height: 100dvh; background: var(--bg-main); color: var(--text-main); overflow: hidden; display: flex; flex-direction: column; }
-
-        /* Login */
+        
+        /* Login & Main */
         #authScreen { position: fixed; inset: 0; background: var(--bg-main); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
         .auth-box { background: var(--bg-sidebar); padding: 40px 30px; border-radius: 20px; width: 100%; max-width: 380px; text-align: center; }
         .auth-box input { width: 100%; padding: 15px; margin: 20px 0; border-radius: 12px; border: 1px solid var(--accent); background: var(--bg-main); color: #fff; text-align: center; }
         .auth-box button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-weight: bold; }
-
-        /* Main */
         #mainScreen { display: none; flex: 1; flex-direction: column; height: 100%; }
         .top-header { background: var(--bg-sidebar); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
         .add-btn { background: var(--accent); color: #fff; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; }
-
+        
         /* Accounts Grid */
         #accountsView { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; align-content: start; }
-        .acc-card { background: var(--bg-sidebar); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; border: 1px solid var(--border-color); }
+        .acc-card { background: var(--bg-sidebar); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; border: 1px solid var(--border-color); position: relative; }
         .acc-card img { width: 60px; height: 60px; border-radius: 50%; margin-bottom: 10px; }
         .acc-card h3 { font-size: 14px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .acc-card p { font-size: 12px; color: var(--text-muted); }
-
+        .info-icon { position: absolute; top: 10px; right: 10px; color: #4a8cc7; font-size: 16px; font-weight: bold; cursor: pointer; }
+        
         /* Chat View */
         #chatView { display: none; flex: 1; flex-direction: row; height: 100%; position: relative; overflow: hidden; }
-        
-        /* Sidebar List */
         #sidebar { width: 100%; height: 100%; background: var(--bg-sidebar); display: flex; flex-direction: column; position: absolute; inset: 0; z-index: 10; transition: transform 0.3s ease; }
         #sidebar.hidden { transform: translateX(-100%); }
-        .sidebar-header { padding: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); background: var(--bg-sidebar); }
+        .sidebar-header { padding: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
         .back-btn { background: transparent; border: none; color: #fff; font-size: 24px; padding: 0 10px; flex-shrink: 0; }
-        #activeAccName { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
         #chatList { flex: 1; overflow-y: auto; }
-        .chat-item { padding: 12px 15px; border-bottom: 1px solid var(--border-color); display: flex; gap: 12px; align-items: center; }
+        .chat-item { padding: 12px 15px; border-bottom: 1px solid var(--border-color); display: flex; gap: 12px; align-items: center; cursor: pointer; }
         .chat-dp { width: 45px; height: 45px; border-radius: 50%; background: var(--accent); display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0; }
         .chat-details { flex: 1; min-width: 0; }
-        .chat-name { font-weight: 500; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-name { font-weight: 500; font-size: 15px; display: flex; align-items: center; gap: 5px; }
         .chat-last { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+        
         /* Message Area */
         #messageArea { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); width: 100%; height: 100%; position: absolute; inset: 0; z-index: 20; transition: transform 0.3s ease; }
         #messageArea.hidden { transform: translateX(100%); }
-        .msg-header { padding: 12px 15px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; z-index: 21; }
+        .msg-header { padding: 12px 15px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; z-index: 21; }
+        .msg-header-left { display: flex; align-items: center; gap: 10px; }
         .msg-back { background: transparent; border: none; color: #fff; font-size: 24px; padding: 0 10px; flex-shrink: 0; }
-        .msg-title { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msg-title { font-weight: 500; font-size: 16px; }
         
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .msg-row { display: flex; width: 100%; }
@@ -62,19 +54,23 @@
         .msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 15px; word-wrap: break-word; }
         .msg.incoming { background: var(--bubble-in); border-bottom-left-radius: 4px; }
         .msg.outgoing { background: var(--bubble-out); border-bottom-right-radius: 4px; }
-
-        /* Input Area */
-        #inputArea { padding: 10px 15px; background: var(--bg-sidebar); display: flex; gap: 10px; z-index: 21; align-items: center; }
-        #msgInput { flex: 1; padding: 12px 15px; border-radius: 20px; border: none; background: var(--bg-main); color: #fff; outline: none; font-size: 15px; }
-        #sendBtn { background: var(--accent); border: none; width: 45px; height: 45px; border-radius: 50%; color: #fff; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
-
-        /* Modal */
-        #addAccountModal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
-        .modal-box { background: var(--bg-sidebar); padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; }
-        .modal-box input, .modal-box textarea { padding: 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--bg-main); color: #fff; outline: none; font-size: 14px; width: 100%; }
-        .modal-box button { padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: bold; cursor: pointer; }
-
-        /* PC Layout Fix */
+        
+        /* Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .modal-box { background: var(--bg-sidebar); padding: 25px; border-radius: 15px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-box h3 { text-align: center; color: #4a8cc7; }
+        .modal-box input, .modal-box textarea { padding: 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--bg-main); color: #fff; outline: none; width: 100%; }
+        .modal-box button { padding: 12px; border-radius: 10px; border: none; color: #fff; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: var(--accent); }
+        .btn-danger { background: #e74c3c; }
+        .btn-warning { background: #f39c12; }
+        .btn-success { background: #2ecc71; }
+        .btn-dark { background: #333; }
+        .close-btn { position: absolute; top: 10px; right: 15px; background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+        
+        .info-row { background: #0e1621; padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 5px; border-bottom: 1px solid #222; }
+        .info-row span { color: #4a8cc7; font-weight: 500; }
+        
         @media (min-width: 900px) {
             #sidebar { position: relative; width: 350px; transform: none !important; border-right: 1px solid var(--border-color); z-index: 21; }
             #messageArea { position: relative; transform: none !important; }
@@ -84,31 +80,95 @@
 </head>
 <body>
 
+    <!-- AUTH -->
     <div id="authScreen">
         <div class="auth-box">
             <h2>Noobster Panel</h2>
             <input type="password" id="accessKeyInput" placeholder="Enter Access Key">
             <button onclick="verifyKey()">Login</button>
-            <p id="authError" style="color: #e74c3c; font-size: 13px; margin-top: 10px;"></p>
+            <p id="authError" style="color: #e74c3c; margin-top: 10px;"></p>
         </div>
     </div>
 
-    <div id="addAccountModal">
+    <!-- ADD ACCOUNT MODAL -->
+    <div id="addAccountModal" class="modal-overlay">
         <div class="modal-box">
             <h3>Add New Account</h3>
             <input type="text" id="apiIdInput" placeholder="API ID (Optional)">
             <input type="text" id="apiHashInput" placeholder="API HASH (Optional)">
             <textarea id="sessionInput" placeholder="Paste String Session here..." rows="3"></textarea>
-            <button onclick="addAccount()">Connect Account</button>
-            <p id="addAccError" style="color: #e74c3c; font-size: 13px; text-align: center;"></p>
-            <button onclick="closeModal()" style="background: #333;">Cancel</button>
+            <button class="btn-primary" onclick="addAccount()">Connect Account</button>
+            <p id="addAccError" style="color: #e74c3c; text-align: center;"></p>
+            <button class="btn-dark" onclick="closeModal('addAccountModal')">Cancel</button>
         </div>
     </div>
 
+    <!-- PROFILE MODAL -->
+    <div id="profileModal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal('profileModal')">&times;</button>
+            <h3>Account Profile</h3>
+            <div id="profileData">
+                <div class="info-row">Name: <span id="profName"></span></div>
+                <div class="info-row">User ID: <span id="profId"></span></div>
+                <div class="info-row">Username: <span id="profUsername"></span></div>
+                <div class="info-row">Phone: <span id="profPhone"></span></div>
+                <div class="info-row">2FA Status: <span id="prof2fa"></span></div>
+            </div>
+            
+            <h4 style="color:#aaa; margin-top:10px;">Active Devices</h4>
+            <div id="profDevices" style="background: #0e1621; padding: 10px; border-radius: 10px; font-size: 12px; max-height: 100px; overflow-y: auto;"></div>
+            
+            <h4 style="color:#aaa; margin-top:10px;">Admin / Owner Channels (Names Only)</h4>
+            <div id="profAdminChats" style="background: #0e1621; padding: 10px; border-radius: 10px; font-size: 13px; max-height: 120px; overflow-y: auto;"></div>
+
+            <button class="btn-primary" onclick="openSettings()" style="margin-top: 10px;">⚙️ Session & Security Settings</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Security Settings</h3>
+            <button class="btn-warning" onclick="terminateSession('current')">🚪 Terminate Current Session</button>
+            <button class="btn-danger" onclick="terminateSession('all')">☠️ Terminate All Other Devices</button>
+            <button class="btn-primary" onclick="open2faModal()" style="background: #8e44ad;">🔑 Reset 2FA Password</button>
+            <button class="btn-primary" onclick="openEmailModal()" style="background: #2980b9;">📧 Change Recovery Email</button>
+            <button class="btn-dark" onclick="closeModal('settingsModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- 2FA MODAL -->
+    <div id="twoFaModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Reset 2FA Password</h3>
+            <input type="password" id="new2faPass" placeholder="New Password">
+            <button class="btn-primary" onclick="submit2fa()" style="background: #8e44ad;">Update Password</button>
+            <p id="2faError" style="text-align: center;"></p>
+            <button class="btn-dark" onclick="closeModal('twoFaModal')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- EMAIL MODAL -->
+    <div id="emailModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Change Gmail / Email</h3>
+            <input type="email" id="newEmail" placeholder="New Gmail">
+            <button class="btn-primary" onclick="requestEmailOtp()" style="background: #2980b9;">Send OTP</button>
+            <div id="otpSection" style="display: none; flex-direction: column; gap: 10px;">
+                <input type="text" id="emailOtp" placeholder="Enter OTP">
+                <button class="btn-success" onclick="submitEmailOtp()">Verify & Update</button>
+            </div>
+            <p id="emailError" style="text-align: center;"></p>
+            <button class="btn-dark" onclick="closeModal('emailModal')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- MAIN SCREEN -->
     <div id="mainScreen">
         <div class="top-header" id="mainHeader">
             <h2>My Accounts</h2>
-            <button class="add-btn" onclick="openModal()">+ Add</button>
+            <button class="add-btn" onclick="openModal('addAccountModal')">+ Add</button>
         </div>
         <div id="accountsView"></div>
 
@@ -123,16 +183,12 @@
 
             <div id="messageArea" class="hidden">
                 <div class="msg-header">
-                    <button class="msg-back" onclick="closeChat()">←</button>
-                    <div class="msg-title" id="chatHeader">Select a chat</div>
+                    <div class="msg-header-left">
+                        <button class="msg-back" onclick="closeChat()">←</button>
+                        <div class="msg-title" id="chatHeader">Select a chat</div>
+                    </div>
                 </div>
                 <div id="messages"></div>
-                <div id="inputArea">
-                    <input type="text" id="msgInput" placeholder="Message..." onkeypress="if(event.key==='Enter') sendMsg()">
-                    <button id="sendBtn" onclick="sendMsg()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -142,8 +198,8 @@
         let currentAccId = null;
         let currentChatId = null;
 
-        function openModal() { document.getElementById('addAccountModal').style.display = 'flex'; }
-        function closeModal() { document.getElementById('addAccountModal').style.display = 'none'; }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
         async function verifyKey() {
             const res = await fetch('/api/auth', {
@@ -165,12 +221,89 @@
             accounts.forEach(acc => {
                 const card = document.createElement('div');
                 card.className = 'acc-card';
-                card.innerHTML = `<img src="${acc.photo}"><h3>${acc.name}</h3><p>📱 ${acc.phone}</p>`;
+                card.innerHTML = `
+                    <img src="${acc.photo}">
+                    <h3>${acc.name}</h3>
+                    <p>📱 ${acc.phone}</p>
+                    <div class="info-icon" onclick="event.stopPropagation(); openProfile('${acc.id}')">ℹ️</div>
+                `;
                 card.onclick = () => openAccountChats(acc.id, acc.name);
                 grid.appendChild(card);
             });
         }
 
+        async function openProfile(accId) {
+            currentAccId = accId;
+            const res = await fetch(`/api/profile/${accId}`, { headers: { 'authorization': TOKEN } });
+            const p = await res.json();
+            if(!res.ok) return alert(p.error);
+
+            document.getElementById('profName').innerText = p.name;
+            document.getElementById('profId').innerText = p.id;
+            document.getElementById('profUsername').innerText = "@" + p.username;
+            document.getElementById('profPhone').innerText = "+" + p.phone;
+            const fa = document.getElementById('prof2fa');
+            fa.innerText = p.has_2fa ? "Enabled ✅" : "Disabled ❌";
+            fa.style.color = p.has_2fa ? "#2ecc71" : "#e74c3c";
+
+            document.getElementById('profDevices').innerHTML = p.devices.map(d => `<div class="info-row">${d.device} (${d.ip}) ${d.current ? '<b style="color:#2ecc71;">[Current]</b>' : ''}</div>`).join('');
+            
+            const adminDiv = document.getElementById('profAdminChats');
+            if(p.admin_chats.length === 0) adminDiv.innerHTML = '<p style="color:#777;">No Admin/Owner channels found.</p>';
+            else adminDiv.innerHTML = p.admin_chats.map(c => `<div class="info-row" style="display:flex; justify-content:space-between;"><span style="color:#fff;">${c.name}</span><span style="color:${c.type==='Owner'?'#e74c3c':'#f1c40f'}; font-weight:bold;">${c.type}</span></div>`).join('');
+
+            openModal('profileModal');
+        }
+
+        function openSettings() {
+            closeModal('profileModal');
+            openModal('settingsModal');
+        }
+        function open2faModal() { closeModal('settingsModal'); openModal('twoFaModal'); }
+        function openEmailModal() { closeModal('settingsModal'); openModal('emailModal'); }
+
+        async function terminateSession(action) {
+            if(!confirm(`Are you sure?`)) return;
+            const res = await fetch('/api/terminate', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
+                body: JSON.stringify({ acc_id: currentAccId, action: action })
+            });
+            const d = await res.json();
+            alert(d.message || d.error);
+            if(res.ok && action === 'current') { closeModal('settingsModal'); backToAccounts(); }
+        }
+
+        async function submit2fa() {
+            const res = await fetch('/api/change-2fa', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
+                body: JSON.stringify({ acc_id: currentAccId, new_password: document.getElementById('new2faPass').value })
+            });
+            const d = await res.json();
+            document.getElementById('2faError').innerText = d.message || d.error;
+            document.getElementById('2faError').style.color = res.ok ? "#2ecc71" : "#e74c3c";
+        }
+
+        async function requestEmailOtp() {
+            const res = await fetch('/api/request-email-otp', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
+                body: JSON.stringify({ acc_id: currentAccId, new_email: document.getElementById('newEmail').value })
+            });
+            const d = await res.json();
+            document.getElementById('emailError').innerText = d.message || d.error;
+            if(res.ok) document.getElementById('otpSection').style.display = 'flex';
+        }
+
+        async function submitEmailOtp() {
+            const res = await fetch('/api/verify-email-otp', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
+                body: JSON.stringify({ acc_id: currentAccId, new_email: document.getElementById('newEmail').value, otp_code: document.getElementById('emailOtp').value })
+            });
+            const d = await res.json();
+            document.getElementById('emailError').innerText = d.message || d.error;
+            document.getElementById('emailError').style.color = res.ok ? "#2ecc71" : "#e74c3c";
+        }
+
+        // Chat logic
         async function openAccountChats(accId, name) {
             currentAccId = accId;
             document.getElementById('accountsView').style.display = 'none';
@@ -183,112 +316,4 @@
                 document.getElementById('messageArea').classList.add('hidden');
             }
 
-            const list = document.getElementById('chatList');
-            list.innerHTML = '<p style="text-align:center; padding:20px; color:#777;">Loading chats...</p>';
-
-            const res = await fetch(`/api/chats/${accId}`, { headers: { 'authorization': TOKEN } });
-            const data = await res.json();
-            
-            if(!res.ok) {
-                list.innerHTML = `<p style="text-align:center; padding:20px; color:#e74c3c;">Error: ${data.error}</p>`;
-                return;
-            }
-
-            list.innerHTML = data.length === 0 ? '<p style="text-align:center; padding:20px; color:#777;">No chats found.</p>' : '';
-            
-            data.forEach(c => {
-                const div = document.createElement('div');
-                div.className = 'chat-item';
-                div.innerHTML = `<div class="chat-dp">${c.name.charAt(0).toUpperCase()}</div><div class="chat-details"><div class="chat-name">${c.name}</div><div class="chat-last">${c.lastMsg || ''}</div></div>`;
-                div.onclick = () => loadMessages(c.id, c.name);
-                list.appendChild(div);
-            });
-        }
-
-        function backToAccounts() {
-            document.getElementById('chatView').style.display = 'none';
-            document.getElementById('mainHeader').style.display = 'flex';
-            document.getElementById('accountsView').style.display = 'grid';
-        }
-
-        function closeChat() {
-            document.getElementById('messageArea').classList.add('hidden');
-            document.getElementById('sidebar').classList.remove('hidden');
-        }
-
-        async function loadMessages(chatId, name) {
-            currentChatId = chatId;
-            document.getElementById('messageArea').classList.remove('hidden');
-            if(window.innerWidth < 900) {
-                document.getElementById('sidebar').classList.add('hidden');
-            }
-            
-            document.getElementById('chatHeader').innerText = name;
-            const area = document.getElementById('messages');
-            area.innerHTML = '<p style="text-align:center; color:#777;">Loading...</p>';
-            
-            const res = await fetch(`/api/messages/${currentAccId}/${chatId}`, { headers: { 'authorization': TOKEN } });
-            const data = await res.json();
-            area.innerHTML = '';
-            
-            if(data.length === 0) {
-                area.innerHTML = '<p style="text-align:center; color:#777;">No messages here yet.</p>';
-                return;
-            }
-
-            data.forEach(m => {
-                const row = document.createElement('div');
-                row.className = 'msg-row ' + (m.isMine ? 'mine' : '');
-                row.innerHTML = `<div class="msg ${m.isMine ? 'outgoing' : 'incoming'}">${m.text}</div>`;
-                area.appendChild(row);
-            });
-            area.scrollTop = area.scrollHeight;
-        }
-
-        async function sendMsg() {
-            const text = document.getElementById('msgInput').value;
-            if(!text || !currentAccId || !currentChatId) return;
-
-            document.getElementById('msgInput').value = ''; 
-            
-            const area = document.getElementById('messages');
-            const row = document.createElement('div');
-            row.className = 'msg-row mine';
-            row.innerHTML = `<div class="msg outgoing">${text}</div>`;
-            area.appendChild(row);
-            area.scrollTop = area.scrollHeight;
-
-            await fetch(`/api/send/${currentAccId}/${currentChatId}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
-                body: JSON.stringify({ text })
-            });
-        }
-
-        async function addAccount() {
-            const session = document.getElementById('sessionInput').value;
-            if(!session) {
-                document.getElementById('addAccError').innerText = "Session required!";
-                return;
-            }
-            document.getElementById('addAccError').innerText = "Connecting...";
-            
-            const res = await fetch('/api/add-account', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'authorization': TOKEN },
-                body: JSON.stringify({ 
-                    apiId: document.getElementById('apiIdInput').value, 
-                    apiHash: document.getElementById('apiHashInput').value, 
-                    session 
-                })
-            });
-            
-            if (res.ok) {
-                closeModal();
-                loadAccountsGrid();
-            } else {
-                const data = await res.json();
-                document.getElementById('addAccError').innerText = data.error;
-            }
-        }
-    </script>
-</body>
-    </html>
+            const res
