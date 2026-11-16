@@ -21,7 +21,7 @@ from telethon.tl.functions.account import (
     SendVerifyEmailCodeRequest,
     VerifyEmailRequest
 )
-from telethon.tl.functions.channels import ExportInviteRequest
+from telethon.tl.functions.messages import ExportChatInviteRequest
 
 app = Flask(__name__)
 MASTER_ACCESS_KEY = os.environ.get("MASTER_ACCESS_KEY", "noobster")
@@ -135,34 +135,38 @@ def get_messages(acc_id, chat_id):
     except Exception as e:
         return jsonify({"error": f"Msg Error: {str(e)}"}), 500
 
-# ---------- 🔧 admin chats now include username / invite link ----------
-async def _resolve_telethon_entity_info(client, entity):
-    """Returns (username_or_None, invite_link_or_None)."""
-    username = getattr(entity, "username", None)
-    invite = None
-    if not username:
+# ---------- 🔧 safe invite helper ----------
+async def _telethon_invite(client, entity):
+    """Try multiple ways to get an invite link for a private channel/gc."""
+    # 1) already-exported link on entity
+    try:
+        link = getattr(entity, "username", None)
+        if link:
+            return f"https://t.me/{link}"
+    except Exception:
+        pass
+    # 2) ExportChatInviteRequest (admin only)
+    try:
+        inv = await client(ExportChatInviteRequest(peer=entity))
+        if getattr(inv, "link", None):
+            return inv.link
+    except Exception:
+        pass
+    # 3) See if entity has an existing exported invite via iter
+    try:
+        from telethon.tl.functions.messages import GetExportedChatInvitesRequest
         try:
-            if getattr(entity, "username", None) is None:
-                # try to pull existing link
-                full = await client.get_entity(entity.id)
-                link = getattr(full, "username", None)
-                if link:
-                    username = link
+            from telethon.tl.types import InputPeerChannel
+            peer = InputPeerChannel(channel_id=entity.id, access_hash=entity.access_hash)
         except Exception:
-            pass
-    if not username:
-        try:
-            # try existing exported invite via CheckChatInvite? Simpler: ExportInvite
-            from telethon.tl.functions.messages import ExportChatInviteRequest
-            try:
-                inv = await client(ExportInviteRequest(channel=entity))
-                invite = getattr(inv, "link", None)
-            except Exception:
-                inv = await client(ExportChatInviteRequest(peer=entity))
-                invite = getattr(inv, "link", None)
-        except Exception as e:
-            invite = None
-    return username, invite
+            peer = entity
+        res = await client(GetExportedChatInvitesRequest(
+            peer=peer, admin_id="me", limit=1))
+        if getattr(res, "invites", None):
+            return f"https://t.me/{res.invites[0].link.lstrip('https://t.me/')}"
+    except Exception:
+        pass
+    return None
 
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
@@ -208,8 +212,7 @@ def get_profile(acc_id):
                             invite = None
                             if not username:
                                 try:
-                                    link = await client.export_chat_invite_link(ch.id)
-                                    invite = link
+                                    invite = await client.export_chat_invite_link(ch.id)
                                 except Exception:
                                     invite = None
                             admins.append({
@@ -238,7 +241,8 @@ def get_profile(acc_id):
                         perms = await client.get_permissions(dialog.entity, "me")
                         if not (perms.is_admin or perms.is_creator):
                             continue
-                        username, invite = await _resolve_telethon_entity_info(client, dialog.entity)
+                        username = getattr(dialog.entity, "username", None)
+                        invite = None if username else await _telethon_invite(client, dialog.entity)
                         admins.append({
                             "name": dialog.name,
                             "type": "Owner" if perms.is_creator else "Admin",
