@@ -32,6 +32,17 @@ def auth():
         return jsonify({"success": True, "token": "secure_token_noobster"})
     return jsonify({"error": "Invalid Key"}), 401
 
+# 🔥 FRESH LOOP FUNCTION (Sabhi routes isko use karenge)
+def get_fresh_loop():
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
+
 async def login_pyrogram(session_str, api_id, api_hash):
     from pyrogram import Client as PyroClient
     client = PyroClient(":memory:", api_id=api_id, api_hash=api_hash, session_string=session_str, in_memory=True)
@@ -59,8 +70,7 @@ def add_account():
     if not session_str: return jsonify({"error": "Session required"}), 400
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = get_fresh_loop()
 
         if session_str.startswith("BQ") or session_str.startswith("1B"):
             client, me = loop.run_until_complete(login_pyrogram(session_str, api_id, api_hash))
@@ -86,7 +96,6 @@ def get_accounts():
         })
     return jsonify(acc_list)
 
-# CHATS: SIRF NOTIFICATION BOT (777000)
 @app.route('/api/chats/<acc_id>', methods=['GET'])
 def get_chats(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -108,7 +117,8 @@ def get_messages(acc_id, chat_id):
     if chat_id != "777000": return jsonify({"error": "Only Notification Bot chat is accessible."}), 403
 
     data = accounts[acc_id]
-    client, loop = data['client'], data['loop']
+    client = data['client']
+    loop = get_fresh_loop()
     msgs = []
 
     try:
@@ -128,14 +138,15 @@ def get_messages(acc_id, chat_id):
     except Exception as e:
         return jsonify({"error": f"Msg Error: {str(e)}"}), 500
 
-# PROFILE INFO (ID, Username, Devices, Admin Chats, 2FA)
+# 🔥 FIXED PROFILE ROUTE
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
 
     data = accounts[acc_id]
-    client, loop, me = data['client'], data['loop'], data['me']
+    client, me = data['client'], data['me']
+    loop = get_fresh_loop()
 
     try:
         if data['type'] != 'telethon':
@@ -170,7 +181,7 @@ def get_profile(acc_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# SETTINGS: TERMINATE SESSIONS
+# 🔥 FIXED TERMINATE ROUTE
 @app.route('/api/terminate', methods=['POST'])
 def terminate_sessions():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -179,7 +190,8 @@ def terminate_sessions():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client, loop = account['client'], account['loop']
+    client = account['client']
+    loop = get_fresh_loop()
 
     try:
         async def terminate():
@@ -200,7 +212,7 @@ def terminate_sessions():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# SETTINGS: RESET 2FA
+# 🔥 FIXED 2FA RESET ROUTE
 @app.route('/api/change-2fa', methods=['POST'])
 def change_2fa():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -209,7 +221,8 @@ def change_2fa():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client, loop = account['client'], account['loop']
+    client = account['client']
+    loop = get_fresh_loop()
 
     try:
         async def set_pwd():
@@ -237,7 +250,7 @@ def change_2fa():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# SETTINGS: CHANGE EMAIL (OTP)
+# 🔥 FIXED EMAIL ROUTES
 @app.route('/api/request-email-otp', methods=['POST'])
 def request_email_otp():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -246,7 +259,8 @@ def request_email_otp():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client, loop = account['client'], account['loop']
+    client = account['client']
+    loop = get_fresh_loop()
 
     try:
         async def send_otp(): await client(SendVerifyEmailCodeRequest(email=new_email))
@@ -263,7 +277,8 @@ def verify_email_otp():
 
     if acc_id not in accounts: return jsonify({"error": "Account not found"}), 404
     account = accounts[acc_id]
-    client, loop = account['client'], account['loop']
+    client = account['client']
+    loop = get_fresh_loop()
 
     try:
         async def verify(): await client(VerifyEmailRequest(email=new_email, code=otp))
