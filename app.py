@@ -14,7 +14,7 @@ except RuntimeError:
 from flask import Flask, request, jsonify, render_template
 from telethon import TelegramClient, functions, types
 from telethon.sessions import StringSession
-from telethon.tl.types import Channel, Chat, ChannelForbidden, InputInvoiceStarGift
+from telethon.tl.types import Channel, Chat, ChannelForbidden
 from telethon.tl.types.account import PasswordInputSettings
 from telethon.tl.functions.account import (
     GetAuthorizationsRequest,
@@ -301,7 +301,7 @@ def send_stars():
         try:
             peer = await client.get_input_entity(target)
             if gift_id:
-                invoice = InputInvoiceStarGift(peer=peer, gift_id=int(gift_id))
+                invoice = types.InputInvoiceStarGift(peer=peer, gift_id=int(gift_id))
                 form = await client(functions.payments.GetPaymentFormRequest(invoice=invoice))
                 await client(functions.payments.SendStarsFormRequest(form_id=form.form_id, invoice=invoice))
                 return {"success": True, "message": f"Gift sent to {target}"}
