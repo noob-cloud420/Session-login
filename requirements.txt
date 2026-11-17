@@ -1,5 +1,5 @@
 Flask==3.0.0
-telethon==1.34.0
+telethon==1.45.0
 pyrogram==1.4.16
 tgcrypto==1.2.5
 gunicorn==21.2.0
