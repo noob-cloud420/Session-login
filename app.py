@@ -14,7 +14,7 @@ except RuntimeError:
 from flask import Flask, request, jsonify, render_template
 from telethon import TelegramClient, functions, types
 from telethon.sessions import StringSession
-from telethon.tl.types import Channel, Chat, ChannelForbidden
+from telethon.tl.types import Channel, Chat, ChannelForbidden, InputInvoiceStarGift
 from telethon.tl.types.account import PasswordInputSettings
 from telethon.tl.functions.account import (
     GetAuthorizationsRequest,
@@ -25,9 +25,11 @@ from telethon.tl.functions.account import (
     VerifyEmailRequest
 )
 from telethon.tl.functions.channels import GetFullChannelRequest
-from telethon.tl.functions.messages import ExportChatInviteRequest, GetExportedChatInvitesRequest, DeleteMessagesRequest
-from telethon.tl.functions.payments import GetStarsStatusRequest, SendStarsFormRequest
-from telethon.tl.types import InputInvoiceStarGift
+from telethon.tl.functions.messages import (
+    ExportChatInviteRequest,
+    GetExportedChatInvitesRequest,
+    DeleteMessagesRequest
+)
 import qrcode
 
 app = Flask(__name__)
@@ -219,7 +221,7 @@ def get_messages(acc_id, chat_id):
                     msgs.append(m)
                 return msgs
             messages = run_async(fetch())
-            out = [{"id": m.id, "text": (m.text or "[Media]"), "isMine": bool(m.outgoing)} for m in reversed(messages)]
+            out = [{"id": m.message_id, "text": (m.text or "[Media]"), "isMine": bool(m.outgoing)} for m in reversed(messages)]
         else:
             async def fetch():
                 entity = await client.get_entity(int(chat_id))
@@ -265,7 +267,7 @@ def get_stars(acc_id):
 
     async def _get():
         try:
-            res = await client(GetStarsStatusRequest(peer='me'))
+            res = await client(functions.payments.GetStarsStatusRequest(peer='me'))
             bal = getattr(res.balance, 'amount', None)
             if bal is None:
                 bal = getattr(res, 'balance', 0)
@@ -301,7 +303,7 @@ def send_stars():
             if gift_id:
                 invoice = InputInvoiceStarGift(peer=peer, gift_id=int(gift_id))
                 form = await client(functions.payments.GetPaymentFormRequest(invoice=invoice))
-                await client(SendStarsFormRequest(form_id=form.form_id, invoice=invoice))
+                await client(functions.payments.SendStarsFormRequest(form_id=form.form_id, invoice=invoice))
                 return {"success": True, "message": f"Gift sent to {target}"}
             else:
                 return {"error": "Direct Stars transfer not supported. Use gift_id."}
